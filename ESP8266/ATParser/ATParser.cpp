@@ -237,6 +237,19 @@ bool ATParser::vrecv(const char *response, va_list args)
             _buffer[offset + j++] = c;
             _buffer[offset + j] = 0;
 
+            // Check for oob data
+            for (int k = 0; k < _oobs.size(); k++) {
+                if (j == _oobs[k].len && memcmp(
+                        _oobs[k].prefix, _buffer+offset, _oobs[k].len) == 0) {
+                    debug_if(dbg_on, "AT! %s\r\n", _oobs[k].prefix);
+                    _oobs[k].cb();
+
+                    // oob may have corrupted non-reentrant buffer,
+                    // so we need to set it up again
+                    return vrecv(response, args);
+                }
+            }
+
             // Check for match
             int count = -1;
             sscanf(_buffer+offset, _buffer, &count);
@@ -306,4 +319,11 @@ bool ATParser::recv(const char *response, ...)
     bool res = vrecv(response, args);
     va_end(args);
     return res;
+}
+
+
+// oob registration
+void ATParser::oob(const char *prefix, Callback<void()> cb)
+{
+    _oobs.push_back((struct oob){strlen(prefix), prefix, cb});
 }

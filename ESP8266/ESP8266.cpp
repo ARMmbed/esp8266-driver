@@ -18,6 +18,7 @@
 
 ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
     : _serial(tx, rx, 1024), _parser(_serial)
+    , _packets(0), _packets_end(&_packets)
 {
     _serial.baud(115200);
     _parser.debugOn(debug);
@@ -30,11 +31,15 @@ bool ESP8266::startup(int mode)
         return false;
     }
 
-    return reset()
+    bool success = reset()
         && _parser.send("AT+CWMODE=%d", mode) 
         && _parser.recv("OK")
         && _parser.send("AT+CIPMUX=1") 
         && _parser.recv("OK");
+
+    _parser.oob("+IPD", this, &ESP8266::_packet_handler);
+
+    return success;
 }
 
 bool ESP8266::reset(void)
@@ -123,20 +128,72 @@ bool ESP8266::send(int id, const void *data, uint32_t amount)
     return false;
 }
 
-int32_t ESP8266::recv(int id, void *data, uint32_t amount)
+void ESP8266::_packet_handler()
 {
-    uint32_t recv_amount;
-    int recv_id;
+    int id;
+    uint32_t amount;
 
-    if (!(_parser.recv("+IPD,%d,%d:", &recv_id, &recv_amount)
-        && recv_id == id
-        && recv_amount <= amount
-        && _parser.read((char*)data, recv_amount)
-        && _parser.recv("OK"))) {
-        return -1;
+    // parse out the packet
+    if (!_parser.recv(",%d,%d:", &id, &amount)) {
+        return;
     }
 
-    return recv_amount;
+    struct packet *packet = (struct packet*)malloc(
+            sizeof(struct packet) + amount);
+    if (!packet) {
+        return;
+    }
+
+    packet->id = id;
+    packet->len = amount;
+    packet->next = 0;
+
+    if (!(_parser.read((char*)(packet + 1), amount)
+        && _parser.recv("OK"))) {
+        free(packet);
+        return;
+    }
+
+    // append to packet list
+    *_packets_end = packet;
+    _packets_end = &packet->next;
+}
+
+int32_t ESP8266::recv(int id, void *data, uint32_t amount)
+{
+    while (true) {
+        // check if any packets are ready for us
+        for (struct packet **p = &_packets; *p; p = &(*p)->next) {
+            if ((*p)->id == id) {
+                struct packet *q = *p;
+
+                if (q->len <= amount) { // Return and remove full packet
+                    memcpy(data, q+1, q->len);
+
+                    if (_packets_end == &(*p)->next) {
+                        _packets_end = p;
+                    }
+                    *p = (*p)->next;
+
+                    uint32_t len = q->len;
+                    free(q);
+                    return len;
+                } else { // return only partial packet
+                    memcpy(data, q+1, amount);
+
+                    q->len -= amount;
+                    memmove(q+1, (uint8_t*)(q+1) + amount, q->len);
+
+                    return amount;
+                }
+            }
+        }
+
+        // Wait for inbound packet
+        if (!_parser.recv("OK")) {
+            return -1;
+        }
+    }
 }
 
 bool ESP8266::close(int id)

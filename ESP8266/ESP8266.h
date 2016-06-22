@@ -166,6 +166,14 @@ private:
     BufferedSerial _serial;
     ATParser _parser;
 
+    struct packet {
+        struct packet *next;
+        int id;
+        uint32_t len;
+        // data follows
+    } *_packets, **_packets_end;
+    void _packet_handler();
+
     char _ip_buffer[16];
     char _mac_buffer[18];
 };

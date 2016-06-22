@@ -20,7 +20,9 @@
 
 #include "mbed.h"
 #include <cstdarg>
+#include <vector>
 #include "BufferedSerial.h"
+#include "Callback.h"
 
 
 /**
@@ -53,6 +55,13 @@ private:
     const char *_delimiter;
     int _delim_size;
     bool dbg_on;
+
+    struct oob {
+        unsigned len;
+        const char *prefix;
+        mbed::Callback<void()> cb;
+    };
+    std::vector<oob> _oobs;
 
 public:
     /**
@@ -192,6 +201,28 @@ public:
     */
     int scanf(const char *format, ...);
     int vscanf(const char *format, va_list args);
+
+    /**
+    * Attach a callback for out-of-band data
+    * 
+    * @param prefix string on when to initiate callback
+    * @param func callback to call when string is read
+    * @note out-of-band data is only processed during a scanf call
+    */
+    void oob(const char *prefix, mbed::Callback<void()> func);
+
+    /**
+    * Attach a callback for out-of-band data
+    *
+    * @param prefix string on when to initiate callback
+    * @param obj pointer to object to call member function on
+    * @param method callback to call when string is read
+    * @note out-of-band data is only processed during a scanf call
+    */
+    template <typename T, typename M>
+    void oob(const char *prefix, T *obj, M method) {
+        return oob(prefix, mbed::Callback<void()>(obj, method));
+    }
 
     /**
     * Flushes the underlying stream
