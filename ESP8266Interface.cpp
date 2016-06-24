@@ -26,12 +26,9 @@
 
 // ESP8266Interface implementation
 ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug)
-    : _esp(tx, rx, debug)
+    : _esp(tx, rx, debug), _stack(_esp)
 {
-    memset(_ids, 0, sizeof(_ids));
-    memset(_cbs, 0, sizeof(_cbs));
-
-    _esp.attach(this, &ESP8266Interface::event);
+    // Do nothing
 }
 
 int ESP8266Interface::connect(
@@ -81,13 +78,31 @@ const char *ESP8266Interface::get_mac_address()
     return _esp.getMACAddress();
 }
 
+NetworkStack * ESP8266Interface::get_stack(void)
+{
+    return &_stack;
+}
+
 struct esp8266_socket {
     int id;
     nsapi_protocol_t proto;
     bool connected;
 };
 
-int ESP8266Interface::socket_open(void **handle, nsapi_protocol_t proto)
+ESP8266Stack::ESP8266Stack(ESP8266 &esp): _esp(esp)
+{
+    memset(_ids, 0, sizeof(_ids));
+    memset(_cbs, 0, sizeof(_cbs));
+
+    _esp.attach(this, &ESP8266Stack::event);
+};
+
+const char *ESP8266Stack::get_ip_address()
+{
+    return _esp.getIPAddress();
+}
+
+int ESP8266Stack::socket_open(void **handle, nsapi_protocol_t proto)
 {
     // Look for an unused socket
     int id = -1;
@@ -116,7 +131,7 @@ int ESP8266Interface::socket_open(void **handle, nsapi_protocol_t proto)
     return 0;
 }
 
-int ESP8266Interface::socket_close(void *handle)
+int ESP8266Stack::socket_close(void *handle)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
     int err = 0;
@@ -131,17 +146,17 @@ int ESP8266Interface::socket_close(void *handle)
     return err;
 }
 
-int ESP8266Interface::socket_bind(void *handle, const SocketAddress &address)
+int ESP8266Stack::socket_bind(void *handle, const SocketAddress &address)
 {
     return NSAPI_ERROR_UNSUPPORTED;
 }
 
-int ESP8266Interface::socket_listen(void *handle, int backlog)
+int ESP8266Stack::socket_listen(void *handle, int backlog)
 {
     return NSAPI_ERROR_UNSUPPORTED;
 }
 
-int ESP8266Interface::socket_connect(void *handle, const SocketAddress &addr)
+int ESP8266Stack::socket_connect(void *handle, const SocketAddress &addr)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
     _esp.setTimeout(ESP8266_MISC_TIMEOUT);
@@ -155,12 +170,12 @@ int ESP8266Interface::socket_connect(void *handle, const SocketAddress &addr)
     return 0;
 }
     
-int ESP8266Interface::socket_accept(void **handle, void *server)
+int ESP8266Stack::socket_accept(void **handle, void *server)
 {
     return NSAPI_ERROR_UNSUPPORTED;
 }
 
-int ESP8266Interface::socket_send(void *handle, const void *data, unsigned size)
+int ESP8266Stack::socket_send(void *handle, const void *data, unsigned size)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
     _esp.setTimeout(ESP8266_SEND_TIMEOUT);
@@ -172,7 +187,7 @@ int ESP8266Interface::socket_send(void *handle, const void *data, unsigned size)
     return size;
 }
 
-int ESP8266Interface::socket_recv(void *handle, void *data, unsigned size)
+int ESP8266Stack::socket_recv(void *handle, void *data, unsigned size)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
     _esp.setTimeout(ESP8266_RECV_TIMEOUT);
@@ -185,7 +200,7 @@ int ESP8266Interface::socket_recv(void *handle, void *data, unsigned size)
     return recv;
 }
 
-int ESP8266Interface::socket_sendto(void *handle, const SocketAddress &addr, const void *data, unsigned size)
+int ESP8266Stack::socket_sendto(void *handle, const SocketAddress &addr, const void *data, unsigned size)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
     if (!socket->connected) {
@@ -198,20 +213,20 @@ int ESP8266Interface::socket_sendto(void *handle, const SocketAddress &addr, con
     return socket_send(socket, data, size);
 }
 
-int ESP8266Interface::socket_recvfrom(void *handle, SocketAddress *addr, void *data, unsigned size)
+int ESP8266Stack::socket_recvfrom(void *handle, SocketAddress *addr, void *data, unsigned size)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;    
     return socket_recv(socket, data, size);
 }
 
-void ESP8266Interface::socket_attach(void *handle, void (*callback)(void *), void *data)
+void ESP8266Stack::socket_attach(void *handle, void (*callback)(void *), void *data)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;    
     _cbs[socket->id].callback = callback;
     _cbs[socket->id].data = data;
 }
 
-void ESP8266Interface::event() {
+void ESP8266Stack::event() {
     for (int i = 0; i < ESP8266_SOCKET_COUNT; i++) {
         if (_cbs[i].callback) {
             _cbs[i].callback(_cbs[i].data);

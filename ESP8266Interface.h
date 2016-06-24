@@ -18,52 +18,21 @@
 #define ESP8266_INTERFACE_H
 
 #include "WiFiInterface.h"
+#include "NetworkStack.h"
 #include "ESP8266.h"
 
 #define ESP8266_SOCKET_COUNT 5
 
-/** ESP8266Interface class
+/** ESP8266Stack class
  *  Implementation of the NetworkStack for the ESP8266
  */
-class ESP8266Interface : public NetworkStack, public WiFiInterface
+class ESP8266Stack : public NetworkStack
 {
 public:
-    /** ESP8266Interface lifetime
-     * @param tx        TX pin
-     * @param rx        RX pin
-     * @param debug     Enable debugging
-     */
-    ESP8266Interface(PinName tx, PinName rx, bool debug = false);
-
-    /** Start the interface
-     *
-     *  Attempts to connect to a WiFi network. If passphrase is invalid,
-     *  NSAPI_ERROR_AUTH_ERROR is returned.
-     *
-     *  @param ssid      Name of the network to connect to
-     *  @param pass      Security passphrase to connect to the network
-     *  @param security  Type of encryption for connection
-     *  @return          0 on success, negative error code on failure
-     */
-    virtual int connect(
-        const char *ssid,
-        const char *pass,
-        nsapi_security_t security = NSAPI_SECURITY_NONE);
-
-    /** Stop the interface
-     *  @return             0 on success, negative on failure
-     */
-    virtual int disconnect();
-
     /** Get the internally stored IP address
      *  @return             IP address of the interface or null if not yet connected
      */
     virtual const char *get_ip_address();
-
-    /** Get the internally stored MAC address
-     *  @return             MAC address of the interface
-     */
-    virtual const char *get_mac_address();
 
 protected:
     /** Open a socket
@@ -165,7 +134,8 @@ protected:
     virtual void socket_attach(void *handle, void (*callback)(void *), void *data);
     
 private:
-    ESP8266 _esp;
+    friend class ESP8266Interface;
+    ESP8266 &_esp;
     bool _ids[ESP8266_SOCKET_COUNT];
 
     void event();
@@ -173,6 +143,62 @@ private:
         void (*callback)(void *);
         void *data;
     } _cbs[ESP8266_SOCKET_COUNT];
+
+    ESP8266Stack(ESP8266 &esp);
+};
+
+
+/** ESP8266Stack class
+ *  Implementation of the NetworkInterface for the ESP8266
+ */
+class ESP8266Interface : public WiFiInterface
+{
+public:
+    /** ESP8266Interface lifetime
+     * @param tx        TX pin
+     * @param rx        RX pin
+     * @param debug     Enable debugging
+     */
+    ESP8266Interface(PinName tx, PinName rx, bool debug = false);
+
+    /** Start the interface
+     *
+     *  Attempts to connect to a WiFi network. If passphrase is invalid,
+     *  NSAPI_ERROR_AUTH_ERROR is returned.
+     *
+     *  @param ssid      Name of the network to connect to
+     *  @param pass      Security passphrase to connect to the network
+     *  @param security  Type of encryption for connection
+     *  @return          0 on success, negative error code on failure
+     */
+    virtual int connect(
+        const char *ssid,
+        const char *pass,
+        nsapi_security_t security = NSAPI_SECURITY_NONE);
+
+    /** Stop the interface
+     *  @return             0 on success, negative on failure
+     */
+    virtual int disconnect();
+
+    /** Get the internally stored MAC address
+     *  @return             MAC address of the interface
+     */
+    virtual const char *get_mac_address();
+
+
+    /** Get the internally stored IP address
+     *  @return             IP address of the interface or null if not yet connected
+     */
+    virtual const char *get_ip_address();
+
+protected:
+    virtual NetworkStack * get_stack(void);
+
+private:
+    ESP8266 _esp;
+    ESP8266Stack _stack;
+
 };
 
 #endif
