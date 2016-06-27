@@ -68,17 +68,17 @@ int ESP8266Interface::disconnect()
     return 0;
 }
 
-const char *ESP8266Interface::get_ip_address()
+const char* ESP8266Interface::get_ip_address()
 {
     return _esp.getIPAddress();
 }
 
-const char *ESP8266Interface::get_mac_address()
+const char* ESP8266Interface::get_mac_address()
 {
     return _esp.getMACAddress();
 }
 
-NetworkStack * ESP8266Interface::get_stack(void)
+NetworkStack* ESP8266Interface::get_stack(void)
 {
     return &_stack;
 }

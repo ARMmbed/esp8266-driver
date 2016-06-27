@@ -184,16 +184,16 @@ public:
     /** Get the internally stored MAC address
      *  @return             MAC address of the interface
      */
-    virtual const char *get_mac_address();
+    virtual const char* get_mac_address();
 
 
     /** Get the internally stored IP address
      *  @return             IP address of the interface or null if not yet connected
      */
-    virtual const char *get_ip_address();
+    virtual const char* get_ip_address();
 
 protected:
-    virtual NetworkStack * get_stack(void);
+    virtual NetworkStack* get_stack(void);
 
 private:
     ESP8266 _esp;
