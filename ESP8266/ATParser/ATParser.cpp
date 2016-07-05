@@ -325,5 +325,9 @@ bool ATParser::recv(const char *response, ...)
 // oob registration
 void ATParser::oob(const char *prefix, Callback<void()> cb)
 {
-    _oobs.push_back((struct oob){strlen(prefix), prefix, cb});
+    struct oob oob;
+    oob.len = strlen(prefix);
+    oob.prefix = prefix;
+    oob.cb = cb;
+    _oobs.push_back(oob);
 }
