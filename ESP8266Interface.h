@@ -165,6 +165,15 @@ protected:
      *  @note Callback may be called in an interrupt context.
      */
     virtual void socket_attach(void *handle, void (*callback)(void *), void *data);
+
+    /** Provide access to the NetworkStack object
+     *
+     *  @return The underlying NetworkStack object
+     */
+    virtual NetworkStack *get_stack()
+    {
+        return this;
+    }
     
 private:
     ESP8266 _esp;
