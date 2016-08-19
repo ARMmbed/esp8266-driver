@@ -112,7 +112,7 @@ protected:
      *  @note This call is not-blocking, if this call would block, must
      *        immediately return NSAPI_ERROR_WOULD_WAIT
      */
-    virtual int socket_accept(void **handle, void *server);
+    virtual int socket_accept(void *handle, void **socket, SocketAddress *address);
 
     /** Send data to the remote host
      *  @param handle       Socket handle
