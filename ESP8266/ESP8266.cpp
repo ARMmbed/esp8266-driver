@@ -32,9 +32,9 @@ bool ESP8266::startup(int mode)
     }
 
     bool success = reset()
-        && _parser.send("AT+CWMODE=%d", mode) 
+        && _parser.send("AT+CWMODE=%d", mode)
         && _parser.recv("OK")
-        && _parser.send("AT+CIPMUX=1") 
+        && _parser.send("AT+CIPMUX=1")
         && _parser.recv("OK");
 
     _parser.oob("+IPD", this, &ESP8266::_packet_handler);
@@ -148,8 +148,7 @@ void ESP8266::_packet_handler()
     packet->len = amount;
     packet->next = 0;
 
-    if (!(_parser.read((char*)(packet + 1), amount)
-        && _parser.recv("OK"))) {
+    if (!(_parser.read((char*)(packet + 1), amount))) {
         free(packet);
         return;
     }
