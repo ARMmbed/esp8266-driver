@@ -79,7 +79,7 @@ bool ESP8266::disconnect(void)
 const char *ESP8266::getIPAddress(void)
 {
     if (!(_parser.send("AT+CIFSR")
-        && _parser.recv("+CIFSR:STAIP,\"%[^\"]\"", _ip_buffer)
+        && _parser.recv("+CIFSR:STAIP,\"%15[^\"]\"", _ip_buffer)
         && _parser.recv("OK"))) {
         return 0;
     }
@@ -90,7 +90,7 @@ const char *ESP8266::getIPAddress(void)
 const char *ESP8266::getMACAddress(void)
 {
     if (!(_parser.send("AT+CIFSR")
-        && _parser.recv("+CIFSR:STAMAC,\"%[^\"]\"", _mac_buffer)
+        && _parser.recv("+CIFSR:STAMAC,\"%17[^\"]\"", _mac_buffer)
         && _parser.recv("OK"))) {
         return 0;
     }
@@ -98,9 +98,74 @@ const char *ESP8266::getMACAddress(void)
     return _mac_buffer;
 }
 
+const char *ESP8266::getGateway()
+{
+    if (!(_parser.send("AT+CIPSTA?")
+        && _parser.recv("+CIPSTA:gateway:\"%15[^\"]\"", _gateway_buffer)
+        && _parser.recv("OK"))) {
+        return 0;
+    }
+
+    return _gateway_buffer;
+}
+
+const char *ESP8266::getNetmask()
+{
+    if (!(_parser.send("AT+CIPSTA?")
+        && _parser.recv("+CIPSTA:netmask:\"%15[^\"]\"", _netmask_buffer)
+        && _parser.recv("OK"))) {
+        return 0;
+    }
+
+    return _netmask_buffer;
+}
+
+int8_t ESP8266::getRSSI()
+{
+    int8_t rssi;
+    char bssid[18];
+
+   if (!(_parser.send("AT+CWJAP?")
+        && _parser.recv("+CWJAP:\"%*[^\"]\",\"%17[^\"]\"", bssid)
+        && _parser.recv("OK"))) {
+        return 0;
+    }
+
+    if (!(_parser.send("AT+CWLAP=\"\",\"%s\",", bssid)
+        && _parser.recv("+CWLAP:(%*d,\"%*[^\"]\",%hhd,", &rssi)
+        && _parser.recv("OK"))) {
+        return 0;
+    }
+
+    return rssi;
+}
+
 bool ESP8266::isConnected(void)
 {
     return getIPAddress() != 0;
+}
+
+int ESP8266::scan(WiFiAccessPoint *res, unsigned limit)
+{
+    unsigned cnt = 0;
+    nsapi_wifi_ap_t ap;
+
+    if (!_parser.send("AT+CWLAP")) {
+        return NSAPI_ERROR_DEVICE_ERROR;
+    }
+
+    while (recv_ap(&ap)) {
+        if (cnt < limit) {
+            res[cnt] = WiFiAccessPoint(ap);
+        }
+
+        cnt++;
+        if (limit != 0 && cnt >= limit) {
+            break;
+        }
+    }
+
+    return cnt;
 }
 
 bool ESP8266::open(const char *type, int id, const char* addr, int port)
@@ -226,4 +291,16 @@ bool ESP8266::writeable()
 void ESP8266::attach(Callback<void()> func)
 {
     _serial.attach(func);
+}
+
+bool ESP8266::recv_ap(nsapi_wifi_ap_t *ap)
+{
+    int sec;
+    bool ret = _parser.recv("+CWLAP:(%d,\"%32[^\"]\",%hhd,\"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx\",%d", &sec, ap->ssid,
+                            &ap->rssi, &ap->bssid[0], &ap->bssid[1], &ap->bssid[2], &ap->bssid[3], &ap->bssid[4],
+                            &ap->bssid[5], &ap->channel);
+
+    ap->security = sec < 5 ? (nsapi_security_t)sec : NSAPI_SECURITY_UNKNOWN;
+
+    return ret;
 }

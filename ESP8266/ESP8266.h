@@ -81,12 +81,41 @@ public:
     */
     const char *getMACAddress(void);
 
+     /** Get the local gateway
+     *
+     *  @return         Null-terminated representation of the local gateway
+     *                  or null if no network mask has been recieved
+     */
+    const char *getGateway();
+
+    /** Get the local network mask
+     *
+     *  @return         Null-terminated representation of the local network mask 
+     *                  or null if no network mask has been recieved
+     */
+    const char *getNetmask();
+
+    /* Return RSSI for active connection
+     *
+     * @return      Measured RSSI
+     */
+    int8_t getRSSI();
+
     /**
     * Check if ESP8266 is conenected
     *
     * @return true only if the chip has an IP address
     */
     bool isConnected(void);
+
+    /** Scan for available networks
+     *
+     * @param  ap    Pointer to allocated array to store discovered AP
+     * @param  limit Size of allocated @a res array, or 0 to only count available AP
+     * @return       Number of entries in @a res, or if @a count was 0 number of available networks, negative on error
+     *               see @a nsapi_error
+     */
+    int scan(WiFiAccessPoint *res, unsigned limit);
 
     /**
     * Open a socketed connection
@@ -173,8 +202,11 @@ private:
         // data follows
     } *_packets, **_packets_end;
     void _packet_handler();
+    bool recv_ap(nsapi_wifi_ap_t *ap);
 
     char _ip_buffer[16];
+    char _gateway_buffer[16];
+    char _netmask_buffer[16];
     char _mac_buffer[18];
 };
 

@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
 
+#include <string.h>
 #include "ESP8266Interface.h"
 
 // Various timeouts for different ESP8266 operations
@@ -22,7 +22,6 @@
 #define ESP8266_SEND_TIMEOUT    500
 #define ESP8266_RECV_TIMEOUT    0
 #define ESP8266_MISC_TIMEOUT    500
-
 
 // ESP8266Interface implementation
 ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug)
@@ -34,10 +33,18 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug)
     _esp.attach(this, &ESP8266Interface::event);
 }
 
-int ESP8266Interface::connect(
-    const char *ssid,
-    const char *pass,
-    nsapi_security_t security)
+int ESP8266Interface::connect(const char *ssid, const char *pass, nsapi_security_t security,
+                                        uint8_t channel)
+{
+    if (channel != 0) {
+        return NSAPI_ERROR_UNSUPPORTED;
+    }
+
+    set_credentials(ssid, pass, security);
+    return connect();
+}
+
+int ESP8266Interface::connect()
 {
     _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
 
@@ -49,7 +56,7 @@ int ESP8266Interface::connect(
         return NSAPI_ERROR_DHCP_FAILURE;
     }
 
-    if (!_esp.connect(ssid, pass)) {
+    if (!_esp.connect(ap_ssid, ap_pass)) {
         return NSAPI_ERROR_NO_CONNECTION;
     }
 
@@ -57,8 +64,27 @@ int ESP8266Interface::connect(
         return NSAPI_ERROR_DHCP_FAILURE;
     }
 
+    return NSAPI_ERROR_OK;
+}
+
+int ESP8266Interface::set_credentials(const char *ssid, const char *pass, nsapi_security_t security)
+{
+    memset(ap_ssid, 0, sizeof(ap_ssid));
+    strncpy(ap_ssid, ssid, sizeof(ap_ssid));
+
+    memset(ap_pass, 0, sizeof(ap_pass));
+    strncpy(ap_pass, pass, sizeof(ap_pass));
+
+    ap_sec = security;
+
     return 0;
 }
+
+int ESP8266Interface::set_channel(uint8_t channel)
+{
+    return NSAPI_ERROR_UNSUPPORTED;
+}
+
 
 int ESP8266Interface::disconnect()
 {
@@ -68,17 +94,37 @@ int ESP8266Interface::disconnect()
         return NSAPI_ERROR_DEVICE_ERROR;
     }
 
-    return 0;
+    return NSAPI_ERROR_OK;
 }
 
-const char* ESP8266Interface::get_ip_address()
+const char *ESP8266Interface::get_ip_address()
 {
     return _esp.getIPAddress();
 }
 
-const char* ESP8266Interface::get_mac_address()
+const char *ESP8266Interface::get_mac_address()
 {
     return _esp.getMACAddress();
+}
+
+const char *ESP8266Interface::get_gateway()
+{
+    return _esp.getGateway();
+}
+
+const char *ESP8266Interface::get_netmask()
+{
+    return _esp.getNetmask();
+}
+
+int8_t ESP8266Interface::get_rssi()
+{
+    return _esp.getRSSI();
+}
+
+int ESP8266Interface::scan(WiFiAccessPoint *res, unsigned count)
+{
+    return _esp.scan(res, count);
 }
 
 struct esp8266_socket {
