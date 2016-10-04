@@ -17,8 +17,7 @@
 #ifndef ESP8266_INTERFACE_H
 #define ESP8266_INTERFACE_H
 
-#include "network-socket/NetworkStack.h"
-#include "network-socket/WiFiInterface.h"
+#include "mbed.h"
 #include "ESP8266.h"
 
 
