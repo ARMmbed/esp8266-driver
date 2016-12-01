@@ -124,6 +124,29 @@ public:
      */
     virtual int scan(WiFiAccessPoint *res, unsigned count);
 
+    /** Translates a hostname to an IP address with specific version
+     *
+     *  The hostname may be either a domain name or an IP address. If the
+     *  hostname is an IP address, no network transactions will be performed.
+     *
+     *  If no stack-specific DNS resolution is provided, the hostname
+     *  will be resolve using a UDP socket on the stack.
+     *
+     *  @param address  Destination for the host SocketAddress
+     *  @param host     Hostname to resolve
+     *  @param version  IP version of address to resolve, NSAPI_UNSPEC indicates
+     *                  version is chosen by the stack (defaults to NSAPI_UNSPEC)
+     *  @return         0 on success, negative error code on failure
+     */
+    using NetworkInterface::gethostbyname;
+
+    /** Add a domain name server to list of servers to query
+     *
+     *  @param addr     Destination for the host address
+     *  @return         0 on success, negative error code on failure
+     */
+    using NetworkInterface::add_dns_server;
+
 protected:
     /** Open a socket
      *  @param handle       Handle in which to store new socket
