@@ -131,6 +131,7 @@ struct esp8266_socket {
     int id;
     nsapi_protocol_t proto;
     bool connected;
+    SocketAddress addr;
 };
 
 int ESP8266Interface::socket_open(void **handle, nsapi_protocol_t proto)
@@ -234,11 +235,21 @@ int ESP8266Interface::socket_recv(void *handle, void *data, unsigned size)
 int ESP8266Interface::socket_sendto(void *handle, const SocketAddress &addr, const void *data, unsigned size)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
+
+    if (socket->connected && socket->addr != addr) {
+        _esp.setTimeout(ESP8266_MISC_TIMEOUT);
+        if (!_esp.close(socket->id)) {
+            return NSAPI_ERROR_DEVICE_ERROR;
+        }
+        socket->connected = false;
+    }
+
     if (!socket->connected) {
         int err = socket_connect(socket, addr);
         if (err < 0) {
             return err;
         }
+        socket->addr = addr;
     }
     
     return socket_send(socket, data, size);
@@ -246,8 +257,13 @@ int ESP8266Interface::socket_sendto(void *handle, const SocketAddress &addr, con
 
 int ESP8266Interface::socket_recvfrom(void *handle, SocketAddress *addr, void *data, unsigned size)
 {
-    struct esp8266_socket *socket = (struct esp8266_socket *)handle;    
-    return socket_recv(socket, data, size);
+    struct esp8266_socket *socket = (struct esp8266_socket *)handle;
+    int ret = socket_recv(socket, data, size);
+    if (ret >= 0 && addr) {
+        *addr = socket->addr;
+    }
+
+    return ret;
 }
 
 void ESP8266Interface::socket_attach(void *handle, void (*callback)(void *), void *data)
