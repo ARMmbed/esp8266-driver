@@ -32,7 +32,7 @@ bool ESP8266::startup(int mode)
     }
 
     bool success = reset()
-        && _parser.send("AT+CWMODE=%d", mode)
+        && _parser.send("AT+CWMODE_CUR=%d", mode)
         && _parser.recv("OK")
         && _parser.send("AT+CIPMUX=1")
         && _parser.recv("OK");
@@ -174,16 +174,20 @@ bool ESP8266::open(const char *type, int id, const char* addr, int port)
     if(id > 4) {
         return false;
     }
-
     return _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port)
         && _parser.recv("OK");
+}
+
+bool ESP8266::dns_lookup(const char* name, char* ip)
+{
+    return _parser.send("AT+CIPDOMAIN=\"%s\"", name) && _parser.recv("+CIPDOMAIN:%s%*[\r]%*[\n]", ip);
 }
 
 bool ESP8266::send(int id, const void *data, uint32_t amount)
 {
     //May take a second try if device is busy
     for (unsigned i = 0; i < 2; i++) {
-        if (_parser.send("AT+CIPSEND=%d,%d", id, amount)
+        if (_parser.send("AT+CIPSENDBUF=%d,%d", id, amount)
             && _parser.recv(">")
             && _parser.write((char*)data, (int)amount) >= 0) {
             return true;
