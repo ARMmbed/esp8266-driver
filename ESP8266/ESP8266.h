@@ -116,6 +116,14 @@ public:
      *               see @a nsapi_error
      */
     int scan(WiFiAccessPoint *res, unsigned limit);
+    
+    /**Perform a dns query
+    *
+    * @param name Hostname to resolve
+    * @param ip   Buffer to store IP address
+    * @return 0 true on success, false on failure
+    */
+    bool dns_lookup(const char *name, char *ip);
 
     /**
     * Open a socketed connection
