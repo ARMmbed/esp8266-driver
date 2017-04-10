@@ -67,7 +67,7 @@ int ESP8266Interface::connect()
     return NSAPI_ERROR_OK;
 }
 
-nsapi_error_t ESP8266Interface::gethostbyname(const char* name, SocketAddress *address, nsapi_version_t version)
+nsapi_error_t ESP8266Interface::gethostbyname(const char *name, SocketAddress *address, nsapi_version_t version)
 {
     if (address->set_ip_address(name)) {
         if (version != NSAPI_UNSPEC && address->get_ip_version() != version) {
@@ -77,16 +77,16 @@ nsapi_error_t ESP8266Interface::gethostbyname(const char* name, SocketAddress *a
         return NSAPI_ERROR_OK;
     }
     
-    char* ipbuff = new char[NSAPI_IP_SIZE];
+    char *ipbuff = new char[NSAPI_IP_SIZE];
     int ret = 0;
     
     if(!_esp.dns_lookup(name, ipbuff)) {
         ret = NSAPI_ERROR_DEVICE_ERROR;
-    }
-    else {
+    } else {
         address->set_ip_address(ipbuff);
     }
-    free(ipbuff);
+
+    delete[] ipbuff;
     return ret;
 }
 

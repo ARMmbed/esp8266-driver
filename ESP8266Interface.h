@@ -70,7 +70,7 @@ public:
      *                  version is chosen by the stack (defaults to NSAPI_UNSPEC)
      *  @return         0 on success, negative error code on failure
      */
-    virtual nsapi_error_t gethostbyname(const char* name, SocketAddress *address, nsapi_version_t version);
+    virtual nsapi_error_t gethostbyname(const char *name, SocketAddress *address, nsapi_version_t version);
     
     /** Set the WiFi network credentials
      *
