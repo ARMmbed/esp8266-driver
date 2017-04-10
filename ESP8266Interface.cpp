@@ -77,14 +77,13 @@ nsapi_error_t ESP8266Interface::gethostbyname(const char* name, SocketAddress *a
         return NSAPI_ERROR_OK;
     }
     
-    char* ipbuff = (char*)malloc(256);
+    char* ipbuff = new char[NSAPI_IP_SIZE];
     int ret = 0;
     
-    if(!_esp.dns_lookup(name, ipbuff))
-    {
+    if(!_esp.dns_lookup(name, ipbuff)) {
         ret = NSAPI_ERROR_DEVICE_ERROR;
     }
-    else{
+    else {
         address->set_ip_address(ipbuff);
     }
     free(ipbuff);
