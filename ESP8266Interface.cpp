@@ -46,8 +46,16 @@ int ESP8266Interface::connect(const char *ssid, const char *pass, nsapi_security
 
 int ESP8266Interface::connect()
 {
+    _esp.setTimeout(ESP8266_MISC_TIMEOUT);
+    
+    if(!_esp.check_firmware_version()) {
+        debug("ERROR: Firmware incompatible with this driver.\
+               \r\nUpdate to v2.0.0 - https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update\r\n"); 
+        return NSAPI_ERROR_DEVICE_ERROR;
+    }
+    
     _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
-
+  
     if (!_esp.startup(3)) {
         return NSAPI_ERROR_DEVICE_ERROR;
     }
