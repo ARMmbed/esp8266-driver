@@ -18,7 +18,6 @@
 #define ESP8266_INTERFACE_H
 
 #include "mbed.h"
-#include "mbed_debug.h"
 #include "ESP8266.h"
 
 

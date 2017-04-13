@@ -30,9 +30,9 @@ public:
     /**
     * Check firmware version of ESP8266
     *
-    * @return true only if ESP8266 firmware > v2
+    * @return integer firmware version or -1 if firmware query command gives outdated response
     */
-    bool check_firmware_version(void);
+    int get_firmware_version(void);
     
     /**
     * Startup the ESP8266
