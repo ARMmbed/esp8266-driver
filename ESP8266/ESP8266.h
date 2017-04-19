@@ -18,6 +18,7 @@
 #define ESP8266_H
 
 #include "ATParser.h"
+#include "BufferedSerial.h"
 
 /** ESP8266Interface class.
     This is an interface to a ESP8266 radio.
@@ -177,16 +178,6 @@ public:
     * @param timeout_ms timeout of the connection
     */
     void setTimeout(uint32_t timeout_ms);
-
-    /**
-    * Checks if data is available
-    */
-    bool readable();
-
-    /**
-    * Checks if data can be written
-    */
-    bool writeable();
 
     /**
     * Attach a function to call whenever network state has changed

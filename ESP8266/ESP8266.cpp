@@ -13,15 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#define __STDC_FORMAT_MACROS 1
+#include <inttypes.h>
 
 #include "ESP8266.h"
 
+#define ATPARSER_BUFSIZE    256  //bytes
+#define ATPARSER_TIMEOUT    8000 //ms
+#define BAUDRATE            115200
+#define OUTPUT_DELIMITER    "\r\n"
+
 ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
-    : _serial(tx, rx, 1024), _parser(_serial)
+    : _serial(tx, rx, BAUDRATE), _parser(&_serial, OUTPUT_DELIMITER, ATPARSER_BUFSIZE, ATPARSER_TIMEOUT, debug)
     , _packets(0), _packets_end(&_packets)
 {
-    _serial.baud(115200);
-    _parser.debugOn(debug);
 }
 
 int ESP8266::get_firmware_version()
@@ -34,7 +39,7 @@ int ESP8266::get_firmware_version()
         // Older firmware versions do not prefix the version with "SDK version: "
         return -1;
     }
-    
+
 }
 
 bool ESP8266::startup(int mode)
@@ -48,8 +53,7 @@ bool ESP8266::startup(int mode)
         && _parser.recv("OK")
         && _parser.send("AT+CIPMUX=1")
         && _parser.recv("OK");
-
-    _parser.oob("+IPD", this, &ESP8266::_packet_handler);
+    _parser.oob("+IPD", callback(this, &ESP8266::_packet_handler));
 
     return success;
 }
@@ -190,16 +194,16 @@ bool ESP8266::open(const char *type, int id, const char* addr, int port)
         && _parser.recv("OK");
 }
 
-bool ESP8266::dns_lookup(const char* name, char* ip)
+bool ESP8266::dns_lookup(const char *name, char *ip)
 {
-    return _parser.send("AT+CIPDOMAIN=\"%s\"", name) && _parser.recv("+CIPDOMAIN:%s%*[\r]%*[\n]", ip);
+    return _parser.send("AT+CIPDOMAIN=\"%s\"", name) && _parser.recv("+CIPDOMAIN:%s\nOK\n", ip);
 }
 
 bool ESP8266::send(int id, const void *data, uint32_t amount)
 {
     //May take a second try if device is busy
     for (unsigned i = 0; i < 2; i++) {
-        if (_parser.send("AT+CIPSEND=%d,%d", id, amount)
+        if (_parser.send("AT+CIPSEND=%d,%" PRIu32, id, amount)
             && _parser.recv(">")
             && _parser.write((char*)data, (int)amount) >= 0) {
             return true;
@@ -215,7 +219,7 @@ void ESP8266::_packet_handler()
     uint32_t amount;
 
     // parse out the packet
-    if (!_parser.recv(",%d,%d:", &id, &amount)) {
+    if (!_parser.recv(",%d,%" SCNu32 ":" , &id, &amount)) {
         return;
     }
 
@@ -294,27 +298,29 @@ void ESP8266::setTimeout(uint32_t timeout_ms)
     _parser.setTimeout(timeout_ms);
 }
 
-bool ESP8266::readable()
-{
-    return _serial.readable();
-}
-
-bool ESP8266::writeable()
-{
-    return _serial.writeable();
-}
-
 void ESP8266::attach(Callback<void()> func)
 {
-    _serial.attach(func);
+    _serial.sigio(func);
 }
 
 bool ESP8266::recv_ap(nsapi_wifi_ap_t *ap)
 {
-    int sec;
-    bool ret = _parser.recv("+CWLAP:(%d,\"%32[^\"]\",%hhd,\"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx\",%d", &sec, ap->ssid,
-                            &ap->rssi, &ap->bssid[0], &ap->bssid[1], &ap->bssid[2], &ap->bssid[3], &ap->bssid[4],
-                            &ap->bssid[5], &ap->channel);
+    // Newlib-nano doesn't support %hhx or SCNu8 scan formats,
+    // so scan into int-sized temporaries.
+    unsigned int bssid[6];
+    unsigned int channel;
+    int rssi, sec;
+
+    bool ret = _parser.recv("+CWLAP:(%d,\"%32[^\"]\",%d,\"%x:%x:%x:%x:%x:%x\",%u",
+                            &sec, ap->ssid, &rssi,
+                            &bssid[0], &bssid[1], &bssid[2], &bssid[3], &bssid[4], &bssid[5],
+                            &channel);
+
+    ap->rssi = rssi;
+    ap->channel = channel;
+    for (int i = 0; i < 6; i++) {
+        ap->bssid[i] = bssid[i];
+    }
 
     ap->security = sec < 5 ? (nsapi_security_t)sec : NSAPI_SECURITY_UNKNOWN;
 
