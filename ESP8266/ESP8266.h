@@ -28,6 +28,13 @@ public:
     ESP8266(PinName tx, PinName rx, bool debug=false);
 
     /**
+    * Check firmware version of ESP8266
+    *
+    * @return integer firmware version or -1 if firmware query command gives outdated response
+    */
+    int get_firmware_version(void);
+    
+    /**
     * Startup the ESP8266
     *
     * @param mode mode of WIFI 1-client, 2-host, 3-both

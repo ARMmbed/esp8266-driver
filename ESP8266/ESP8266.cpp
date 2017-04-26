@@ -24,6 +24,19 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
     _parser.debugOn(debug);
 }
 
+int ESP8266::get_firmware_version()
+{
+    _parser.send("AT+GMR");
+    int version;
+    if(_parser.recv("SDK version:%d", &version) && _parser.recv("OK")) {
+        return version;
+    } else { 
+        // Older firmware versions do not prefix the version with "SDK version: "
+        return -1;
+    }
+    
+}
+
 bool ESP8266::startup(int mode)
 {
     //only 3 valid modes
@@ -31,8 +44,7 @@ bool ESP8266::startup(int mode)
         return false;
     }
 
-    bool success = reset()
-        && _parser.send("AT+CWMODE_CUR=%d", mode)
+    bool success = _parser.send("AT+CWMODE_CUR=%d", mode)
         && _parser.recv("OK")
         && _parser.send("AT+CIPMUX=1")
         && _parser.recv("OK");

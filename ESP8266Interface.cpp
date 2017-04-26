@@ -16,12 +16,16 @@
 
 #include <string.h>
 #include "ESP8266Interface.h"
+#include "mbed_debug.h"
 
 // Various timeouts for different ESP8266 operations
 #define ESP8266_CONNECT_TIMEOUT 15000
 #define ESP8266_SEND_TIMEOUT    500
 #define ESP8266_RECV_TIMEOUT    0
 #define ESP8266_MISC_TIMEOUT    500
+
+// Firmware version
+#define ESP8266_VERSION 2
 
 // ESP8266Interface implementation
 ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug)
@@ -46,6 +50,20 @@ int ESP8266Interface::connect(const char *ssid, const char *pass, nsapi_security
 
 int ESP8266Interface::connect()
 {
+    _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
+    
+    if (!_esp.reset()) {
+        return NSAPI_ERROR_DEVICE_ERROR;
+    }   
+ 
+    _esp.setTimeout(ESP8266_MISC_TIMEOUT);
+    
+    if (_esp.get_firmware_version() != ESP8266_VERSION) {
+        debug("ESP8266: ERROR: Firmware incompatible with this driver.\
+               \r\nUpdate to v%d - https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update\r\n",ESP8266_VERSION); 
+        return NSAPI_ERROR_DEVICE_ERROR;
+    }
+    
     _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
 
     if (!_esp.startup(3)) {
