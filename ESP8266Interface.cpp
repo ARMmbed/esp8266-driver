@@ -210,10 +210,11 @@ int ESP8266Interface::socket_close(void *handle)
     int err = 0;
     _esp.setTimeout(ESP8266_MISC_TIMEOUT);
  
-    if (!_esp.close(socket->id)) {
+    if (socket->connected && !_esp.close(socket->id)) {
         err = NSAPI_ERROR_DEVICE_ERROR;
     }
 
+    socket->connected = false;
     _ids[socket->id] = false;
     delete socket;
     return err;
