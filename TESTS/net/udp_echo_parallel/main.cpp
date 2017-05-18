@@ -36,6 +36,9 @@ using namespace utest::v1;
 #define MBED_CFG_ESP8266_DEBUG false
 #endif
 
+#define STRINGIZE(x) STRINGIZE2(x)
+#define STRINGIZE2(x) #x
+
 
 const int ECHO_LOOPS = 16;
 ESP8266Interface net(MBED_CFG_ESP8266_TX, MBED_CFG_ESP8266_RX, MBED_CFG_ESP8266_DEBUG);
@@ -163,7 +166,7 @@ Echo *echoers[MBED_CFG_UDP_CLIENT_ECHO_THREADS];
 
 
 void test_udp_echo_parallel() {
-    int err = net.connect(MBED_CFG_ESP8266_SSID, MBED_CFG_ESP8266_PASS);
+    int err = net.connect(STRINGIZE(MBED_CFG_ESP8266_SSID), STRINGIZE(MBED_CFG_ESP8266_PASS));
     TEST_ASSERT_EQUAL(0, err);
 
     if (err) {
@@ -212,15 +215,7 @@ void test_udp_echo_parallel() {
 
 // Test setup
 utest::v1::status_t test_setup(const size_t number_of_cases) {
-    GREENTEA_SETUP_UUID(120, "udp_echo", uuid, 48);
-
-    // create mac address based on uuid
-    uint64_t mac = 0;
-    for (int i = 0; i < sizeof(uuid); i++) {
-        mac += uuid[i];
-    }
-    mbed_set_mac_address((const char*)mac, /*coerce control bits*/ 1);
-
+    GREENTEA_SETUP(120, "udp_echo");
     return verbose_test_setup_handler(number_of_cases);
 }
 

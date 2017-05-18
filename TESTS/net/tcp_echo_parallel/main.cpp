@@ -32,6 +32,9 @@ using namespace utest::v1;
 #define MBED_CFG_ESP8266_DEBUG false
 #endif
 
+#define STRINGIZE(x) STRINGIZE2(x)
+#define STRINGIZE2(x) #x
+
 
 ESP8266Interface net(MBED_CFG_ESP8266_TX, MBED_CFG_ESP8266_RX, MBED_CFG_ESP8266_DEBUG);
 SocketAddress tcp_addr;
@@ -100,7 +103,7 @@ Echo *echoers[MBED_CFG_TCP_CLIENT_ECHO_THREADS];
 
 
 void test_tcp_echo_parallel() {
-    int err = net.connect(MBED_CFG_ESP8266_SSID, MBED_CFG_ESP8266_PASS);
+    int err = net.connect(STRINGIZE(MBED_CFG_ESP8266_SSID), STRINGIZE(MBED_CFG_ESP8266_PASS));
     TEST_ASSERT_EQUAL(0, err);
 
     printf("MBED: TCPClient IP address is '%s'\n", net.get_ip_address());
@@ -140,16 +143,7 @@ void test_tcp_echo_parallel() {
 
 // Test setup
 utest::v1::status_t test_setup(const size_t number_of_cases) {
-    char uuid[48] = {0};
-    GREENTEA_SETUP_UUID(120, "tcp_echo", uuid, 48);
-
-    // create mac address based on uuid
-    uint64_t mac = 0;
-    for (int i = 0; i < sizeof(uuid); i++) {
-        mac += uuid[i];
-    }
-    mbed_set_mac_address((const char*)mac, /*coerce control bits*/ 1);
-
+    GREENTEA_SETUP(120, "tcp_echo");
     return verbose_test_setup_handler(number_of_cases);
 }
 
