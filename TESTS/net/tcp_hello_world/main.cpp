@@ -20,6 +20,9 @@ using namespace utest::v1;
 #define MBED_CFG_ESP8266_DEBUG false
 #endif
 
+#define STRINGIZE(x) STRINGIZE2(x)
+#define STRINGIZE2(x) #x
+
 
 namespace {
     // Test connection information
@@ -47,7 +50,7 @@ bool find_substring(const char *first, const char *last, const char *s_first, co
 void test_tcp_hello_world() {
     bool result = false;
     ESP8266Interface net(MBED_CFG_ESP8266_TX, MBED_CFG_ESP8266_RX, MBED_CFG_ESP8266_DEBUG);
-    net.connect(MBED_CFG_ESP8266_SSID, MBED_CFG_ESP8266_PASS);
+    net.connect(STRINGIZE(MBED_CFG_ESP8266_SSID), STRINGIZE(MBED_CFG_ESP8266_PASS));
     printf("TCP client IP Address is %s\r\n", net.get_ip_address());
 
     TCPSocket sock(&net);
@@ -95,16 +98,7 @@ void test_tcp_hello_world() {
 
 // Test setup
 utest::v1::status_t test_setup(const size_t number_of_cases) {
-    char uuid[48] = {0};
-    GREENTEA_SETUP_UUID(120, "default_auto", uuid, 48);
-
-    // create mac address based on uuid
-    uint64_t mac = 0;
-    for (int i = 0; i < sizeof(uuid); i++) {
-        mac += uuid[i];
-    }
-    mbed_set_mac_address((const char*)mac, /*coerce control bits*/ 1);
-
+    GREENTEA_SETUP(120, "default_auto");
     return verbose_test_setup_handler(number_of_cases);
 }
 

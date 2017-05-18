@@ -19,12 +19,15 @@ using namespace utest::v1;
 #define MBED_CFG_ESP8266_DEBUG false
 #endif
 
+#define STRINGIZE(x) STRINGIZE2(x)
+#define STRINGIZE2(x) #x
+
 
 // Bringing the network up and down
 template <int COUNT>
 void test_bring_up_down() {
     ESP8266Interface net(MBED_CFG_ESP8266_TX, MBED_CFG_ESP8266_RX, MBED_CFG_ESP8266_DEBUG);
-    net.set_credentials(MBED_CFG_ESP8266_SSID, MBED_CFG_ESP8266_PASS);
+    net.set_credentials(STRINGIZE(MBED_CFG_ESP8266_SSID), STRINGIZE(MBED_CFG_ESP8266_PASS));
 
     for (int i = 0; i < COUNT; i++) {
         int err = net.connect();
@@ -57,16 +60,7 @@ void test_bring_up_down() {
 
 // Test setup
 utest::v1::status_t test_setup(const size_t number_of_cases) {
-    char uuid[48] = {0};
-    GREENTEA_SETUP_UUID(120, "default_auto", uuid, sizeof(uuid));
-
-    // create mac address based on uuid
-    uint64_t mac = 0;
-    for (int i = 0; i < sizeof(uuid); i++) {
-        mac += uuid[i];
-    }
-    mbed_set_mac_address((const char*)mac, /*coerce control bits*/ 1);
-
+    GREENTEA_SETUP(120, "default_auto");
     return verbose_test_setup_handler(number_of_cases);
 }
 

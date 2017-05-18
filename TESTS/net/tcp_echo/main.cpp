@@ -24,6 +24,9 @@ using namespace utest::v1;
 #define MBED_CFG_ESP8266_DEBUG false
 #endif
 
+#define STRINGIZE(x) STRINGIZE2(x)
+#define STRINGIZE2(x) #x
+
 namespace {
     char tx_buffer[MBED_CFG_TCP_CLIENT_ECHO_BUFFER_SIZE] = {0};
     char rx_buffer[MBED_CFG_TCP_CLIENT_ECHO_BUFFER_SIZE] = {0};
@@ -38,7 +41,7 @@ void prep_buffer(char *tx_buffer, size_t tx_size) {
 
 void test_tcp_echo() {
     ESP8266Interface net(MBED_CFG_ESP8266_TX, MBED_CFG_ESP8266_RX, MBED_CFG_ESP8266_DEBUG);
-    int err = net.connect(MBED_CFG_ESP8266_SSID, MBED_CFG_ESP8266_PASS);
+    int err = net.connect(STRINGIZE(MBED_CFG_ESP8266_SSID), STRINGIZE(MBED_CFG_ESP8266_PASS));
 
     if (err) {
         printf("MBED: failed to connect with an error of %d\r\n", err);
@@ -93,16 +96,7 @@ void test_tcp_echo() {
 
 // Test setup
 utest::v1::status_t test_setup(const size_t number_of_cases) {
-    char uuid[48] = {0};
-    GREENTEA_SETUP_UUID(120, "tcp_echo", uuid, 48);
-
-    // create mac address based on uuid
-    uint64_t mac = 0;
-    for (int i = 0; i < sizeof(uuid); i++) {
-        mac += uuid[i];
-    }
-    mbed_set_mac_address((const char*)mac, /*coerce control bits*/ 1);
-
+    GREENTEA_SETUP(120, "tcp_echo");
     return verbose_test_setup_handler(number_of_cases);
 }
 
