@@ -18,7 +18,7 @@ mbed add mbed-os
 Now you should be able to run the network tests with `mbed test`:
 ``` bash
 # Runs the ESP8266 network tests, requires a wifi access point
-mbed test -t <COMPILER HERE> -m <BOARD HERE> -n tests-net* --compile -DMBED_CFG_ESP8266_SSID='<SSID HERE>' -DMBED_CFG_ESP8266_PASS='<PASS HERE>'
+mbed test -t <COMPILER HERE> -m <BOARD HERE> -n tests-net* --compile -DMBED_CFG_ESP8266_SSID=<SSID HERE> -DMBED_CFG_ESP8266_PASS=<PASS HERE>
 mbed test -t <COMPILER HERE> -m <BOARD HERE> -n tests-net* --run --verbose
 ```
 
@@ -32,6 +32,6 @@ There are a couple other options that can be used during testing:
 For example, here is how to enabled the debug output from the ESP8266:
 ``` bash
 # Run the ESP8266 network tests with debug output, requires a wifi access point
-mbed test -t <COMPILER HERE> -m <BOARD HERE> -n tests-net* --compile -DMBED_CFG_ESP8266_SSID='<SSID HERE>' -DMBED_CFG_ESP8266_PASS='<PASS HERE>' -DMBED_CFG_ESP8266_DEBUG=true
+mbed test -t <COMPILER HERE> -m <BOARD HERE> -n tests-net* --compile -DMBED_CFG_ESP8266_SSID=<SSID HERE> -DMBED_CFG_ESP8266_PASS=<PASS HERE> -DMBED_CFG_ESP8266_DEBUG=true
 mbed test -t <COMPILER HERE> -m <BOARD HERE> -n tests-net* --run --verbose
 ```
