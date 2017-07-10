@@ -73,13 +73,13 @@ bool ESP8266::dhcp(bool enabled, int mode)
         return false;
     }
 
-    return _parser.send("AT+CWDHCP=%d,%d", enabled?1:0, mode)
+    return _parser.send("AT+CWDHCP_CUR=%d,%d", enabled?1:0, mode)
         && _parser.recv("OK");
 }
 
 bool ESP8266::connect(const char *ap, const char *passPhrase)
 {
-    return _parser.send("AT+CWJAP=\"%s\",\"%s\"", ap, passPhrase)
+    return _parser.send("AT+CWJAP_CUR=\"%s\",\"%s\"", ap, passPhrase)
         && _parser.recv("OK");
 }
 
@@ -112,8 +112,8 @@ const char *ESP8266::getMACAddress(void)
 
 const char *ESP8266::getGateway()
 {
-    if (!(_parser.send("AT+CIPSTA?")
-        && _parser.recv("+CIPSTA:gateway:\"%15[^\"]\"", _gateway_buffer)
+    if (!(_parser.send("AT+CIPSTA_CUR?")
+        && _parser.recv("+CIPSTA_CUR:gateway:\"%15[^\"]\"", _gateway_buffer)
         && _parser.recv("OK"))) {
         return 0;
     }
@@ -123,8 +123,8 @@ const char *ESP8266::getGateway()
 
 const char *ESP8266::getNetmask()
 {
-    if (!(_parser.send("AT+CIPSTA?")
-        && _parser.recv("+CIPSTA:netmask:\"%15[^\"]\"", _netmask_buffer)
+    if (!(_parser.send("AT+CIPSTA_CUR?")
+        && _parser.recv("+CIPSTA_CUR:netmask:\"%15[^\"]\"", _netmask_buffer)
         && _parser.recv("OK"))) {
         return 0;
     }
@@ -137,8 +137,8 @@ int8_t ESP8266::getRSSI()
     int8_t rssi;
     char bssid[18];
 
-   if (!(_parser.send("AT+CWJAP?")
-        && _parser.recv("+CWJAP:\"%*[^\"]\",\"%17[^\"]\"", bssid)
+   if (!(_parser.send("AT+CWJAP_CUR?")
+        && _parser.recv("+CWJAP_CUR::\"%*[^\"]\",\"%17[^\"]\"", bssid)
         && _parser.recv("OK"))) {
         return 0;
     }
