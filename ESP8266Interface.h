@@ -57,21 +57,7 @@ public:
      */
     virtual int connect(const char *ssid, const char *pass, nsapi_security_t security = NSAPI_SECURITY_NONE,
                                   uint8_t channel = 0);
-    
-    /** Translates a hostname to an IP address with specific version
-     *
-     *  The hostname may be either a domain name or an IP address. If the
-     *  hostname is an IP address, no network transactions will be performed.
-     *
-     *
-     *  @param host     Hostname to resolve
-     *  @param address  Destination for the host SocketAddress
-     *  @param version  IP version of address to resolve, NSAPI_UNSPEC indicates
-     *                  version is chosen by the stack (defaults to NSAPI_UNSPEC)
-     *  @return         0 on success, negative error code on failure
-     */
-    virtual nsapi_error_t gethostbyname(const char *name, SocketAddress *address, nsapi_version_t version = NSAPI_UNSPEC);
-    
+
     /** Set the WiFi network credentials
      *
      *  @param ssid      Name of the network to connect to
