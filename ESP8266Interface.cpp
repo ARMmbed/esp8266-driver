@@ -19,10 +19,18 @@
 #include "mbed_debug.h"
 
 // Various timeouts for different ESP8266 operations
+#ifndef ESP8266_CONNECT_TIMEOUT
 #define ESP8266_CONNECT_TIMEOUT 15000
+#endif
+#ifndef ESP8266_SEND_TIMEOUT
 #define ESP8266_SEND_TIMEOUT    500
+#endif
+#ifndef ESP8266_RECV_TIMEOUT
 #define ESP8266_RECV_TIMEOUT    0
+#endif
+#ifndef ESP8266_MISC_TIMEOUT
 #define ESP8266_MISC_TIMEOUT    500
+#endif
 
 // Firmware version
 #define ESP8266_VERSION 2
