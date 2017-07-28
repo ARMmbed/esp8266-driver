@@ -16,8 +16,8 @@
 
 #include "ESP8266.h"
 
-ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
-    : _serial(tx, rx, 1024), _parser(_serial)
+ESP8266::ESP8266(PinName tx, PinName rx, Callback<void(SignalingAction, int)> signalingCallback, bool debug)
+    : _serial(tx, rx, 1024), _parser(_serial), _signalingCallback(signalingCallback)
     , _packets(0), _packets_end(&_packets)
 {
     _serial.baud(115200);
@@ -30,11 +30,11 @@ int ESP8266::get_firmware_version()
     int version;
     if(_parser.recv("SDK version:%d", &version) && _parser.recv("OK")) {
         return version;
-    } else { 
+    } else {
         // Older firmware versions do not prefix the version with "SDK version: "
         return -1;
     }
-    
+
 }
 
 bool ESP8266::startup(int mode)
@@ -50,6 +50,18 @@ bool ESP8266::startup(int mode)
         && _parser.recv("OK");
 
     _parser.oob("+IPD", this, &ESP8266::_packet_handler);
+
+    _parser.oob("0,CONNECT", this, &ESP8266::_incoming_socket_opened0);
+    _parser.oob("1,CONNECT", this, &ESP8266::_incoming_socket_opened1);
+    _parser.oob("2,CONNECT", this, &ESP8266::_incoming_socket_opened2);
+    _parser.oob("3,CONNECT", this, &ESP8266::_incoming_socket_opened3);
+    _parser.oob("4,CONNECT", this, &ESP8266::_incoming_socket_opened4);
+
+    _parser.oob("0,CLOSED", this, &ESP8266::_incoming_socket_closed0);
+    _parser.oob("1,CLOSED", this, &ESP8266::_incoming_socket_closed1);
+    _parser.oob("2,CLOSED", this, &ESP8266::_incoming_socket_closed2);
+    _parser.oob("3,CLOSED", this, &ESP8266::_incoming_socket_closed3);
+    _parser.oob("4,CLOSED", this, &ESP8266::_incoming_socket_closed4);
 
     return success;
 }
@@ -319,4 +331,24 @@ bool ESP8266::recv_ap(nsapi_wifi_ap_t *ap)
     ap->security = sec < 5 ? (nsapi_security_t)sec : NSAPI_SECURITY_UNKNOWN;
 
     return ret;
+}
+
+bool ESP8266::bind(const SocketAddress& address)
+{
+    return _parser.send("AT+CIPSERVER=1,%d", address.get_port())
+        && _parser.recv("OK");
+}
+
+void ESP8266::_incoming_socket_opened(int8_t socket_id)
+{
+    printf("Incoming socket opened %d\n", socket_id);
+
+    _signalingCallback(ESP8266_SOCKET_CONNECT, socket_id);
+}
+
+void ESP8266::_incoming_socket_closed(int8_t socket_id)
+{
+    printf("Incoming socket closed %d\n", socket_id);
+
+    _signalingCallback(ESP8266_SOCKET_CLOSE, socket_id);
 }

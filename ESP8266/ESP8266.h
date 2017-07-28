@@ -19,13 +19,18 @@
 
 #include "ATParser.h"
 
+enum SignalingAction {
+    ESP8266_SOCKET_CONNECT,
+    ESP8266_SOCKET_CLOSE
+};
+
 /** ESP8266Interface class.
     This is an interface to a ESP8266 radio.
  */
 class ESP8266
 {
 public:
-    ESP8266(PinName tx, PinName rx, bool debug=false);
+    ESP8266(PinName tx, PinName rx, Callback<void(SignalingAction, int)> signalingCallback, bool debug=false);
 
     /**
     * Check firmware version of ESP8266
@@ -33,7 +38,7 @@ public:
     * @return integer firmware version or -1 if firmware query command gives outdated response
     */
     int get_firmware_version(void);
-    
+
     /**
     * Startup the ESP8266
     *
@@ -97,7 +102,7 @@ public:
 
     /** Get the local network mask
      *
-     *  @return         Null-terminated representation of the local network mask 
+     *  @return         Null-terminated representation of the local network mask
      *                  or null if no network mask has been recieved
      */
     const char *getNetmask();
@@ -123,7 +128,7 @@ public:
      *               see @a nsapi_error
      */
     int scan(WiFiAccessPoint *res, unsigned limit);
-    
+
     /**Perform a dns query
     *
     * @param name Hostname to resolve
@@ -206,9 +211,19 @@ public:
         attach(Callback<void()>(obj, method));
     }
 
+    /**
+    * Start binding to a port
+    *
+    * @param address SocketAddress instance (only port is being used)
+    */
+    bool bind(const SocketAddress& address);
+
+    void ping();
+
 private:
     BufferedSerial _serial;
     ATParser _parser;
+    Callback<void(SignalingAction, int)> _signalingCallback;
 
     struct packet {
         struct packet *next;
@@ -217,12 +232,28 @@ private:
         // data follows
     } *_packets, **_packets_end;
     void _packet_handler();
+    void _incoming_socket_opened(int8_t);
+    void _incoming_socket_closed(int8_t);
     bool recv_ap(nsapi_wifi_ap_t *ap);
 
     char _ip_buffer[16];
     char _gateway_buffer[16];
     char _netmask_buffer[16];
     char _mac_buffer[18];
+
+    // The CONNECTED OOB messages start with %d, and patching the ATParser is not worth it
+    // Max. connections is 5 according to ESP8266_SOCKET_COUNT, if that changes, this has to change too
+    void _incoming_socket_opened0() { _incoming_socket_opened(0); }
+    void _incoming_socket_opened1() { _incoming_socket_opened(1); }
+    void _incoming_socket_opened2() { _incoming_socket_opened(2); }
+    void _incoming_socket_opened3() { _incoming_socket_opened(3); }
+    void _incoming_socket_opened4() { _incoming_socket_opened(4); }
+
+    void _incoming_socket_closed0() { _incoming_socket_closed(0); }
+    void _incoming_socket_closed1() { _incoming_socket_closed(1); }
+    void _incoming_socket_closed2() { _incoming_socket_closed(2); }
+    void _incoming_socket_closed3() { _incoming_socket_closed(3); }
+    void _incoming_socket_closed4() { _incoming_socket_closed(4); }
 };
 
 #endif
