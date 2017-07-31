@@ -245,8 +245,11 @@ private:
     Thread* event_thread;
     char* rx_buffer;
     size_t rx_ix;
-    bool _incoming_socket_status[5];
-
+    uint32_t _incoming_socket_status[5];
+    uint32_t _global_socket_counter;
+    bool _in_server_mode;
+    struct packet *_ipd_packet;
+    char* _ipd_packet_data_ptr;
 };
 
 #endif

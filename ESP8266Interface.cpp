@@ -243,8 +243,6 @@ int ESP8266Interface::socket_accept(void *server, void **socket, SocketAddress *
             //     _incoming_sockets[ix].socket, _incoming_sockets[ix].socket && _incoming_sockets[ix].socket->connected,
             //     _incoming_sockets[ix].accepted);
             if (_incoming_sockets[ix].socket && _incoming_sockets[ix].socket->connected && !_incoming_sockets[ix].accepted) {
-                printf("accepting socket %d\n", ix);
-
                 *socket = _incoming_sockets[ix].socket;
                 // addr is not used here I think...
                 _incoming_sockets[ix].accepted = true;
@@ -261,6 +259,10 @@ int ESP8266Interface::socket_send(void *handle, const void *data, unsigned size)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
     _esp.setTimeout(ESP8266_SEND_TIMEOUT);
+
+    if (!socket->connected) {
+        return NSAPI_ERROR_NO_SOCKET;
+    }
 
     if (!_esp.send(socket->id, data, size)) {
         return NSAPI_ERROR_DEVICE_ERROR;
@@ -336,7 +338,7 @@ void ESP8266Interface::event(int) {
 
 void ESP8266Interface::signal(SignalingAction action, int socket_id) {
     if (action == ESP8266_SOCKET_CONNECT) {
-        printf("ESP8266::SOCKET CONNECT %d\n", socket_id);
+        // printf("ESP8266::SOCKET CONNECT %d\n", socket_id);
         if (_ids[socket_id]) {
             // this should not be possible...
             // printf("ESP8266_SOCKET_CONNECT for socket that already exists...\n");
@@ -359,7 +361,7 @@ void ESP8266Interface::signal(SignalingAction action, int socket_id) {
         _incoming_sockets[socket_id].accepted = false;
     }
     else if (action == ESP8266_SOCKET_CLOSE) {
-        printf("ESP8266::SOCKET CLOSE %d\n", socket_id);
+        // printf("ESP8266::SOCKET CLOSE %d\n", socket_id);
 
         // Q: should we be able to delete the socket here? probably segfaults if held in user code
         struct esp8266_socket *socket = _incoming_sockets[socket_id].socket;
@@ -372,6 +374,6 @@ void ESP8266Interface::signal(SignalingAction action, int socket_id) {
         _ids[socket_id] = false;
         _incoming_sockets[socket_id].accepted = false;
         _incoming_sockets[socket_id].socket = NULL;
-        delete socket;
+        // delete socket;
     }
 }
