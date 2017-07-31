@@ -51,18 +51,6 @@ bool ESP8266::startup(int mode)
 
     _parser.oob("+IPD", this, &ESP8266::_packet_handler);
 
-    _parser.oob("0,CONNECT", this, &ESP8266::_incoming_socket_opened0);
-    _parser.oob("1,CONNECT", this, &ESP8266::_incoming_socket_opened1);
-    _parser.oob("2,CONNECT", this, &ESP8266::_incoming_socket_opened2);
-    _parser.oob("3,CONNECT", this, &ESP8266::_incoming_socket_opened3);
-    _parser.oob("4,CONNECT", this, &ESP8266::_incoming_socket_opened4);
-
-    _parser.oob("0,CLOSED", this, &ESP8266::_incoming_socket_closed0);
-    _parser.oob("1,CLOSED", this, &ESP8266::_incoming_socket_closed1);
-    _parser.oob("2,CLOSED", this, &ESP8266::_incoming_socket_closed2);
-    _parser.oob("3,CLOSED", this, &ESP8266::_incoming_socket_closed3);
-    _parser.oob("4,CLOSED", this, &ESP8266::_incoming_socket_closed4);
-
     return success;
 }
 
@@ -253,6 +241,10 @@ void ESP8266::_packet_handler()
 
 int32_t ESP8266::recv(int id, void *data, uint32_t amount)
 {
+    bool exit_when_not_found = false;
+
+    bool is_incoming_socket = _incoming_socket_status[id];
+
     while (true) {
         // check if any packets are ready for us
         for (struct packet **p = &_packets; *p; p = &(*p)->next) {
@@ -281,9 +273,36 @@ int32_t ESP8266::recv(int id, void *data, uint32_t amount)
             }
         }
 
-        // Wait for inbound packet
-        if (!_parser.recv("OK")) {
+        if (exit_when_not_found) {
             return -1;
+        }
+
+        // Here's a problem... recv() blocks for forever, but it might be that the underlying socket closes in the meantime.
+        // We know when it happens (due to monitoring the RX IRQ channel)
+        // but there's no way of signaling this thread and actually abort the request...
+
+        if (is_incoming_socket) {
+            int timeout = _parser.getTimeout();
+            _parser.setTimeout(1000);
+
+            if (!_parser.recv("OK")) {
+                _parser.setTimeout(timeout);
+
+                // socket gone
+                if (!_incoming_socket_status[id]) return NSAPI_ERROR_NO_SOCKET;
+
+                // otherwise, just continue trying to get data...
+                continue;
+            }
+        }
+        else {
+            // Wait for inbound packet
+            if (!_parser.recv("OK")) {
+                // so this is weird... the message just received by the parser could actually be one of ours (in TCPServer mode)...
+                // so do one more pass...
+                exit_when_not_found = true;
+                continue;
+            }
         }
     }
 }
@@ -316,7 +335,7 @@ bool ESP8266::writeable()
     return _serial.writeable();
 }
 
-void ESP8266::attach(Callback<void()> func)
+void ESP8266::attach(Callback<void(int)> func)
 {
     _serial.attach(func);
 }
@@ -335,20 +354,68 @@ bool ESP8266::recv_ap(nsapi_wifi_ap_t *ap)
 
 bool ESP8266::bind(const SocketAddress& address)
 {
+    // we need an event queue to dispatch from serial RX IRQ -> non-IRQ thread
+    event_queue = new EventQueue();
+    event_thread = new Thread(osPriorityNormal, 2048);
+    if (!event_queue || !event_thread) {
+        return NSAPI_ERROR_NO_MEMORY;
+    }
+    event_thread->start(callback(event_queue, &EventQueue::dispatch_forever));
+
+    // buffer to store RX data in
+    rx_buffer = (char*)malloc(1024);
+    rx_ix = 0;
+    if (!rx_buffer) {
+        return NSAPI_ERROR_NO_MEMORY;
+    }
+
+    // clear incoming socket status
+    memset(_incoming_socket_status, 0, sizeof(_incoming_socket_status));
+
+    // attach to the serial
+    _serial.attach(callback(this, &ESP8266::attach_rx));
+
+    // and start the actual server
     return _parser.send("AT+CIPSERVER=1,%d", address.get_port())
         && _parser.recv("OK");
 }
 
-void ESP8266::_incoming_socket_opened(int8_t socket_id)
-{
-    printf("Incoming socket opened %d\n", socket_id);
+void ESP8266::process_command(char* cmd, size_t size) {
+    if (size == 9 /* 0,CONNECT */
+        && (cmd[0] >= '0' && cmd[0] <= '9')
+        && (cmd[1] == ',')
+        && (strcmp(&cmd[2], "CONNECT") == 0)) {
 
-    _signalingCallback(ESP8266_SOCKET_CONNECT, socket_id);
+        _incoming_socket_status[cmd[0] - '0'] = true;
+
+        _signalingCallback(ESP8266_SOCKET_CONNECT, cmd[0] - '0');
+    }
+    else if (size == 8 /* 0,CLOSED */
+        && (cmd[0] >= '0' && cmd[0] <= '9')
+        && (cmd[1] == ',')
+        && (strcmp(&cmd[2], "CLOSED") == 0)) {
+
+        _incoming_socket_status[cmd[0] - '0'] = false;
+
+        _signalingCallback(ESP8266_SOCKET_CLOSE, cmd[0] - '0');
+    }
+    free(cmd);
 }
 
-void ESP8266::_incoming_socket_closed(int8_t socket_id)
-{
-    printf("Incoming socket closed %d\n", socket_id);
+void ESP8266::attach_rx(int c) {
+    // store value in buffer
+    rx_buffer[rx_ix] = c;
+    rx_buffer[rx_ix + 1] = 0;
 
-    _signalingCallback(ESP8266_SOCKET_CLOSE, socket_id);
+    if (rx_ix > 0 && c == '\n') {
+        // got a whole command
+        char* cmd = (char*)calloc(rx_ix, 1);
+        memcpy(cmd, rx_buffer, rx_ix - 1);
+        event_queue->call(callback(this, &ESP8266::process_command), cmd, rx_ix - 1);
+
+        rx_ix = 0;
+        return;
+    }
+
+    rx_ix++;
 }

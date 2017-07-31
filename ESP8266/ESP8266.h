@@ -198,7 +198,7 @@ public:
     *
     * @param func A pointer to a void function, or 0 to set as none
     */
-    void attach(Callback<void()> func);
+    void attach(Callback<void(int)> func);
 
     /**
     * Attach a function to call whenever network state has changed
@@ -208,7 +208,7 @@ public:
     */
     template <typename T, typename M>
     void attach(T *obj, M method) {
-        attach(Callback<void()>(obj, method));
+        attach(Callback<void(int)>(obj, method));
     }
 
     /**
@@ -218,9 +218,10 @@ public:
     */
     bool bind(const SocketAddress& address);
 
-    void ping();
-
 private:
+    void attach_rx(int);
+    void process_command(char*, size_t);
+
     BufferedSerial _serial;
     ATParser _parser;
     Callback<void(SignalingAction, int)> _signalingCallback;
@@ -232,8 +233,6 @@ private:
         // data follows
     } *_packets, **_packets_end;
     void _packet_handler();
-    void _incoming_socket_opened(int8_t);
-    void _incoming_socket_closed(int8_t);
     bool recv_ap(nsapi_wifi_ap_t *ap);
 
     char _ip_buffer[16];
@@ -241,19 +240,13 @@ private:
     char _netmask_buffer[16];
     char _mac_buffer[18];
 
-    // The CONNECTED OOB messages start with %d, and patching the ATParser is not worth it
-    // Max. connections is 5 according to ESP8266_SOCKET_COUNT, if that changes, this has to change too
-    void _incoming_socket_opened0() { _incoming_socket_opened(0); }
-    void _incoming_socket_opened1() { _incoming_socket_opened(1); }
-    void _incoming_socket_opened2() { _incoming_socket_opened(2); }
-    void _incoming_socket_opened3() { _incoming_socket_opened(3); }
-    void _incoming_socket_opened4() { _incoming_socket_opened(4); }
+    // TCPServer mode needs a separate thread to dispatch RX IRQ commands from
+    EventQueue* event_queue;
+    Thread* event_thread;
+    char* rx_buffer;
+    size_t rx_ix;
+    bool _incoming_socket_status[5];
 
-    void _incoming_socket_closed0() { _incoming_socket_closed(0); }
-    void _incoming_socket_closed1() { _incoming_socket_closed(1); }
-    void _incoming_socket_closed2() { _incoming_socket_closed(2); }
-    void _incoming_socket_closed3() { _incoming_socket_closed(3); }
-    void _incoming_socket_closed4() { _incoming_socket_closed(4); }
 };
 
 #endif

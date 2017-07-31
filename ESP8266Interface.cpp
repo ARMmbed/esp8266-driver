@@ -37,7 +37,7 @@
 
 // ESP8266Interface implementation
 ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug)
-    : _esp(tx, rx, callback(this, &ESP8266Interface::signal), false)
+    : _esp(tx, rx, callback(this, &ESP8266Interface::signal), debug)
 {
     memset(_ids, 0, sizeof(_ids));
     memset(_cbs, 0, sizeof(_cbs));
@@ -208,7 +208,11 @@ int ESP8266Interface::socket_close(void *handle)
 
 int ESP8266Interface::socket_bind(void *handle, const SocketAddress &address)
 {
-    return _esp.bind(address);
+    int bind_res = _esp.bind(address);
+    if (bind_res < -3000) return bind_res;
+    if (bind_res != 1) return NSAPI_ERROR_DEVICE_ERROR;
+
+    return NSAPI_ERROR_OK;
 }
 
 int ESP8266Interface::socket_listen(void *handle, int backlog)
@@ -232,13 +236,7 @@ int ESP8266Interface::socket_connect(void *handle, const SocketAddress &addr)
 
 int ESP8266Interface::socket_accept(void *server, void **socket, SocketAddress *addr)
 {
-    printf("socket_accept\n");
-
     while (1) {
-        // to get the OOB messages we need to send something to the ESP8266 so the ATParser has time to
-        // grab the packets. Send a bogus message to the module...
-        _esp.get_firmware_version();
-
         // now go through the _incoming_sockets array and see if there are unattached sockets...
         for (size_t ix = 0; ix < ESP8266_SOCKET_COUNT; ix++) {
             // printf("_incoming_sockets[ix] socket=%p connected=%d accepted=%d\n",
@@ -254,7 +252,7 @@ int ESP8266Interface::socket_accept(void *server, void **socket, SocketAddress *
             }
         }
 
-        wait_ms(20); // socket_accept is blocking
+        wait_ms(20);
     }
     return 0;
 }
@@ -277,7 +275,10 @@ int ESP8266Interface::socket_recv(void *handle, void *data, unsigned size)
     _esp.setTimeout(ESP8266_RECV_TIMEOUT);
 
     int32_t recv = _esp.recv(socket->id, data, size);
-    if (recv < 0) {
+    if (recv < -3000) {
+        return recv;
+    }
+    else if (recv < 0) {
         return NSAPI_ERROR_WOULD_BLOCK;
     }
 
@@ -325,7 +326,7 @@ void ESP8266Interface::socket_attach(void *handle, void (*callback)(void *), voi
     _cbs[socket->id].data = data;
 }
 
-void ESP8266Interface::event() {
+void ESP8266Interface::event(int) {
     for (int i = 0; i < ESP8266_SOCKET_COUNT; i++) {
         if (_cbs[i].callback) {
             _cbs[i].callback(_cbs[i].data);
@@ -334,12 +335,11 @@ void ESP8266Interface::event() {
 }
 
 void ESP8266Interface::signal(SignalingAction action, int socket_id) {
-    printf("ESP8266Interface::signal %d %d\n", action, socket_id);
-
     if (action == ESP8266_SOCKET_CONNECT) {
+        printf("ESP8266::SOCKET CONNECT %d\n", socket_id);
         if (_ids[socket_id]) {
             // this should not be possible...
-            printf("ESP8266_SOCKET_CONNECT for socket that already exists...\n");
+            // printf("ESP8266_SOCKET_CONNECT for socket that already exists...\n");
             // return;
         }
 
@@ -359,6 +359,8 @@ void ESP8266Interface::signal(SignalingAction action, int socket_id) {
         _incoming_sockets[socket_id].accepted = false;
     }
     else if (action == ESP8266_SOCKET_CLOSE) {
+        printf("ESP8266::SOCKET CLOSE %d\n", socket_id);
+
         // Q: should we be able to delete the socket here? probably segfaults if held in user code
         struct esp8266_socket *socket = _incoming_sockets[socket_id].socket;
         if (!socket || !socket->connected) {
@@ -367,10 +369,9 @@ void ESP8266Interface::signal(SignalingAction action, int socket_id) {
         }
 
         socket->connected = false;
+        _ids[socket_id] = false;
         _incoming_sockets[socket_id].accepted = false;
         _incoming_sockets[socket_id].socket = NULL;
-        _ids[socket_id] = false;
-
-        // delete socket?
+        delete socket;
     }
 }

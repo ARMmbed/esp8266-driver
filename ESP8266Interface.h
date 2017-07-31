@@ -271,7 +271,7 @@ private:
     uint8_t ap_ch;
     char ap_pass[64]; /* The longest allowed passphrase */
 
-    void event();
+    void event(int);
 
     struct {
         void (*callback)(void *);
@@ -283,6 +283,7 @@ private:
         struct esp8266_socket* socket;
         bool accepted;
      } _incoming_sockets[ESP8266_SOCKET_COUNT];
+
 };
 
 #endif
