@@ -37,10 +37,11 @@
 
 // ESP8266Interface implementation
 ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug)
-    : _esp(tx, rx, debug)
+    : _esp(tx, rx, callback(this, &ESP8266Interface::signal), debug)
 {
     memset(_ids, 0, sizeof(_ids));
     memset(_cbs, 0, sizeof(_cbs));
+    memset(_incoming_sockets, 0, sizeof(_incoming_sockets));
 
     _esp.attach(this, &ESP8266Interface::event);
 }
@@ -59,19 +60,19 @@ int ESP8266Interface::connect(const char *ssid, const char *pass, nsapi_security
 int ESP8266Interface::connect()
 {
     _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
-    
+
     if (!_esp.reset()) {
         return NSAPI_ERROR_DEVICE_ERROR;
-    }   
- 
+    }
+
     _esp.setTimeout(ESP8266_MISC_TIMEOUT);
-    
+
     if (_esp.get_firmware_version() != ESP8266_VERSION) {
         debug("ESP8266: ERROR: Firmware incompatible with this driver.\
-               \r\nUpdate to v%d - https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update\r\n",ESP8266_VERSION); 
+               \r\nUpdate to v%d - https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update\r\n",ESP8266_VERSION);
         return NSAPI_ERROR_DEVICE_ERROR;
     }
-    
+
     _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
 
     if (!_esp.startup(3)) {
@@ -164,7 +165,7 @@ int ESP8266Interface::socket_open(void **handle, nsapi_protocol_t proto)
 {
     // Look for an unused socket
     int id = -1;
- 
+
     for (int i = 0; i < ESP8266_SOCKET_COUNT; i++) {
         if (!_ids[i]) {
             id = i;
@@ -172,16 +173,16 @@ int ESP8266Interface::socket_open(void **handle, nsapi_protocol_t proto)
             break;
         }
     }
- 
+
     if (id == -1) {
         return NSAPI_ERROR_NO_SOCKET;
     }
-    
+
     struct esp8266_socket *socket = new struct esp8266_socket;
     if (!socket) {
         return NSAPI_ERROR_NO_SOCKET;
     }
-    
+
     socket->id = id;
     socket->proto = proto;
     socket->connected = false;
@@ -194,7 +195,7 @@ int ESP8266Interface::socket_close(void *handle)
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
     int err = 0;
     _esp.setTimeout(ESP8266_MISC_TIMEOUT);
- 
+
     if (socket->connected && !_esp.close(socket->id)) {
         err = NSAPI_ERROR_DEVICE_ERROR;
     }
@@ -207,7 +208,11 @@ int ESP8266Interface::socket_close(void *handle)
 
 int ESP8266Interface::socket_bind(void *handle, const SocketAddress &address)
 {
-    return NSAPI_ERROR_UNSUPPORTED;
+    int bind_res = _esp.bind(address);
+    if (bind_res < -3000) return bind_res;
+    if (bind_res != 1) return NSAPI_ERROR_DEVICE_ERROR;
+
+    return NSAPI_ERROR_OK;
 }
 
 int ESP8266Interface::socket_listen(void *handle, int backlog)
@@ -224,25 +229,45 @@ int ESP8266Interface::socket_connect(void *handle, const SocketAddress &addr)
     if (!_esp.open(proto, socket->id, addr.get_ip_address(), addr.get_port())) {
         return NSAPI_ERROR_DEVICE_ERROR;
     }
-    
+
     socket->connected = true;
     return 0;
 }
-    
+
 int ESP8266Interface::socket_accept(void *server, void **socket, SocketAddress *addr)
 {
-    return NSAPI_ERROR_UNSUPPORTED;
+    while (1) {
+        // now go through the _incoming_sockets array and see if there are unattached sockets...
+        for (size_t ix = 0; ix < ESP8266_SOCKET_COUNT; ix++) {
+            // printf("_incoming_sockets[ix] socket=%p connected=%d accepted=%d\n",
+            //     _incoming_sockets[ix].socket, _incoming_sockets[ix].socket && _incoming_sockets[ix].socket->connected,
+            //     _incoming_sockets[ix].accepted);
+            if (_incoming_sockets[ix].socket && _incoming_sockets[ix].socket->connected && !_incoming_sockets[ix].accepted) {
+                *socket = _incoming_sockets[ix].socket;
+                // addr is not used here I think...
+                _incoming_sockets[ix].accepted = true;
+                return 0;
+            }
+        }
+
+        wait_ms(20);
+    }
+    return 0;
 }
 
 int ESP8266Interface::socket_send(void *handle, const void *data, unsigned size)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
     _esp.setTimeout(ESP8266_SEND_TIMEOUT);
- 
+
+    if (!socket->connected) {
+        return NSAPI_ERROR_NO_SOCKET;
+    }
+
     if (!_esp.send(socket->id, data, size)) {
         return NSAPI_ERROR_DEVICE_ERROR;
     }
- 
+
     return size;
 }
 
@@ -250,12 +275,15 @@ int ESP8266Interface::socket_recv(void *handle, void *data, unsigned size)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
     _esp.setTimeout(ESP8266_RECV_TIMEOUT);
- 
+
     int32_t recv = _esp.recv(socket->id, data, size);
-    if (recv < 0) {
+    if (recv < -3000) {
+        return recv;
+    }
+    else if (recv < 0) {
         return NSAPI_ERROR_WOULD_BLOCK;
     }
- 
+
     return recv;
 }
 
@@ -278,7 +306,7 @@ int ESP8266Interface::socket_sendto(void *handle, const SocketAddress &addr, con
         }
         socket->addr = addr;
     }
-    
+
     return socket_send(socket, data, size);
 }
 
@@ -295,15 +323,57 @@ int ESP8266Interface::socket_recvfrom(void *handle, SocketAddress *addr, void *d
 
 void ESP8266Interface::socket_attach(void *handle, void (*callback)(void *), void *data)
 {
-    struct esp8266_socket *socket = (struct esp8266_socket *)handle;    
+    struct esp8266_socket *socket = (struct esp8266_socket *)handle;
     _cbs[socket->id].callback = callback;
     _cbs[socket->id].data = data;
 }
 
-void ESP8266Interface::event() {
+void ESP8266Interface::event(int) {
     for (int i = 0; i < ESP8266_SOCKET_COUNT; i++) {
         if (_cbs[i].callback) {
             _cbs[i].callback(_cbs[i].data);
         }
+    }
+}
+
+void ESP8266Interface::signal(SignalingAction action, int socket_id) {
+    if (action == ESP8266_SOCKET_CONNECT) {
+        // printf("ESP8266::SOCKET CONNECT %d\n", socket_id);
+        if (_ids[socket_id]) {
+            // this should not be possible...
+            // printf("ESP8266_SOCKET_CONNECT for socket that already exists...\n");
+            // return;
+        }
+
+        struct esp8266_socket *socket = new struct esp8266_socket;
+        if (!socket) {
+            printf("ESP8266_SOCKET_CONNECT could not create socket\n");
+            return;
+        }
+
+        _ids[socket_id] = true;
+
+        socket->id = socket_id;
+        socket->proto = NSAPI_TCP;
+        socket->connected = true;
+
+        _incoming_sockets[socket_id].socket = socket;
+        _incoming_sockets[socket_id].accepted = false;
+    }
+    else if (action == ESP8266_SOCKET_CLOSE) {
+        // printf("ESP8266::SOCKET CLOSE %d\n", socket_id);
+
+        // Q: should we be able to delete the socket here? probably segfaults if held in user code
+        struct esp8266_socket *socket = _incoming_sockets[socket_id].socket;
+        if (!socket || !socket->connected) {
+            printf("ESP8266_SOCKET_CLOSE for socket that does not exist or is already closed\n");
+            return;
+        }
+
+        socket->connected = false;
+        _ids[socket_id] = false;
+        _incoming_sockets[socket_id].accepted = false;
+        _incoming_sockets[socket_id].socket = NULL;
+        // delete socket;
     }
 }

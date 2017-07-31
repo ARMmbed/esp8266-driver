@@ -19,13 +19,18 @@
 
 #include "ATParser.h"
 
+enum SignalingAction {
+    ESP8266_SOCKET_CONNECT,
+    ESP8266_SOCKET_CLOSE
+};
+
 /** ESP8266Interface class.
     This is an interface to a ESP8266 radio.
  */
 class ESP8266
 {
 public:
-    ESP8266(PinName tx, PinName rx, bool debug=false);
+    ESP8266(PinName tx, PinName rx, Callback<void(SignalingAction, int)> signalingCallback, bool debug=false);
 
     /**
     * Check firmware version of ESP8266
@@ -33,7 +38,7 @@ public:
     * @return integer firmware version or -1 if firmware query command gives outdated response
     */
     int get_firmware_version(void);
-    
+
     /**
     * Startup the ESP8266
     *
@@ -97,7 +102,7 @@ public:
 
     /** Get the local network mask
      *
-     *  @return         Null-terminated representation of the local network mask 
+     *  @return         Null-terminated representation of the local network mask
      *                  or null if no network mask has been recieved
      */
     const char *getNetmask();
@@ -123,7 +128,7 @@ public:
      *               see @a nsapi_error
      */
     int scan(WiFiAccessPoint *res, unsigned limit);
-    
+
     /**Perform a dns query
     *
     * @param name Hostname to resolve
@@ -193,7 +198,7 @@ public:
     *
     * @param func A pointer to a void function, or 0 to set as none
     */
-    void attach(Callback<void()> func);
+    void attach(Callback<void(int)> func);
 
     /**
     * Attach a function to call whenever network state has changed
@@ -203,12 +208,23 @@ public:
     */
     template <typename T, typename M>
     void attach(T *obj, M method) {
-        attach(Callback<void()>(obj, method));
+        attach(Callback<void(int)>(obj, method));
     }
 
+    /**
+    * Start binding to a port
+    *
+    * @param address SocketAddress instance (only port is being used)
+    */
+    bool bind(const SocketAddress& address);
+
 private:
+    void attach_rx(int);
+    void process_command(char*, size_t);
+
     BufferedSerial _serial;
     ATParser _parser;
+    Callback<void(SignalingAction, int)> _signalingCallback;
 
     struct packet {
         struct packet *next;
@@ -223,6 +239,17 @@ private:
     char _gateway_buffer[16];
     char _netmask_buffer[16];
     char _mac_buffer[18];
+
+    // TCPServer mode needs a separate thread to dispatch RX IRQ commands from
+    EventQueue* event_queue;
+    Thread* event_thread;
+    char* rx_buffer;
+    size_t rx_ix;
+    uint32_t _incoming_socket_status[5];
+    uint32_t _global_socket_counter;
+    bool _in_server_mode;
+    struct packet *_ipd_packet;
+    char* _ipd_packet_data_ptr;
 };
 
 #endif

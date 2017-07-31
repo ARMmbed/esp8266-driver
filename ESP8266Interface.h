@@ -256,6 +256,13 @@ protected:
     }
 
 private:
+    /** Process a signal received from the ESP8266 driver
+     *  Used to react to passive actions, like a socket connecting to the TCPServer
+     *  @param action       Signaling action
+     *  @param socket       The ESP8266 socket ID involved
+     */
+    void signal(SignalingAction action, int socket);
+
     ESP8266 _esp;
     bool _ids[ESP8266_SOCKET_COUNT];
 
@@ -264,12 +271,19 @@ private:
     uint8_t ap_ch;
     char ap_pass[64]; /* The longest allowed passphrase */
 
-    void event();
+    void event(int);
 
     struct {
         void (*callback)(void *);
         void *data;
     } _cbs[ESP8266_SOCKET_COUNT];
+
+    // for incoming sockets this driver handles the memory
+    struct {
+        struct esp8266_socket* socket;
+        bool accepted;
+     } _incoming_sockets[ESP8266_SOCKET_COUNT];
+
 };
 
 #endif
