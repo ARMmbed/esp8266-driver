@@ -271,6 +271,11 @@ int32_t ESP8266::recv(int id, void *data, uint32_t amount)
 
         // Wait for inbound packet
         if (!_parser.recv("OK")) {
+            // Nuvoton FIXUP
+            struct packet **p = &_packets;
+            if (*p && (*p)->id == id) {
+                continue;
+            }
             return -1;
         }
     }
