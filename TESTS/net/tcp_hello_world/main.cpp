@@ -26,7 +26,7 @@ using namespace utest::v1;
 
 namespace {
     // Test connection information
-    const char *HTTP_SERVER_NAME = "developer.mbed.org";
+    const char *HTTP_SERVER_NAME = "os.mbed.com";
     const char *HTTP_SERVER_FILE_PATH = "/media/uploads/mbed_official/hello.txt";
     const int HTTP_SERVER_PORT = 80;
 #if defined(TARGET_VK_RZ_A1H)
@@ -59,7 +59,7 @@ void test_tcp_hello_world() {
         printf("HTTP: OK\r\n");
 
         // We are constructing GET command like this:
-        // GET http://developer.mbed.org/media/uploads/mbed_official/hello.txt HTTP/1.0\n\n
+        // GET http://os.mbed.com/media/uploads/mbed_official/hello.txt HTTP/1.0\n\n
         strcpy(buffer, "GET http://");
         strcat(buffer, HTTP_SERVER_NAME);
         strcat(buffer, HTTP_SERVER_FILE_PATH);
@@ -92,6 +92,7 @@ void test_tcp_hello_world() {
     }
 
     net.disconnect();
+    printf("Network disconnected\r\n");
     TEST_ASSERT_EQUAL(true, result);
 }
 

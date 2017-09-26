@@ -24,7 +24,7 @@ mbed test -t <COMPILER HERE> -m <BOARD HERE> -n tests-net* --run --verbose
 
 There are a couple other options that can be used during testing:
 - MBED_CFG_ESP8266_SSID - SSID of the wifi access point to connect to
-- MBED_CFG_ESP8266_SSID - Passphrase of the wifi access point to connect to
+- MBED_CFG_ESP8266_PASS - Passphrase of the wifi access point to connect to
 - MBED_CFG_ESP8266_TX - TX pin for the ESP8266 serial connection (defaults to D1)
 - MBED_CFG_ESP8266_RX - TX pin for the ESP8266 serial connection (defaults to D0)
 - MBED_CFG_ESP8266_DEBUG - Enabled debug output from the ESP8266

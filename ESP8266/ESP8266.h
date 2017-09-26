@@ -17,7 +17,7 @@
 #ifndef ESP8266_H
 #define ESP8266_H
 
-#include "ATParser.h"
+#include "ATCmdParser.h"
 
 /** ESP8266Interface class.
     This is an interface to a ESP8266 radio.
@@ -207,8 +207,8 @@ public:
     }
 
 private:
-    BufferedSerial _serial;
-    ATParser _parser;
+    UARTSerial _serial;
+    ATCmdParser _parser;
 
     struct packet {
         struct packet *next;
