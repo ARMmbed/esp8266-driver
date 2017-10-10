@@ -16,12 +16,17 @@
 
 #include "ESP8266.h"
 
+#define   ESP8266_DEFAULT_BAUD_RATE   115200
+
 ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
-    : _serial(tx, rx, 1024), _parser(_serial)
-    , _packets(0), _packets_end(&_packets)
+    : _serial(tx, rx, ESP8266_DEFAULT_BAUD_RATE), 
+      _parser(&_serial), 
+      _packets(0), 
+      _packets_end(&_packets)
 {
-    _serial.baud(115200);
-    _parser.debugOn(debug);
+    _serial.set_baud( ESP8266_DEFAULT_BAUD_RATE );
+    _parser.debug_on(debug);
+    _parser.set_delimiter("\r\n");
 }
 
 int ESP8266::get_firmware_version()
@@ -49,8 +54,8 @@ bool ESP8266::startup(int mode)
         && _parser.send("AT+CIPMUX=1")
         && _parser.recv("OK");
 
-    _parser.oob("+IPD", this, &ESP8266::_packet_handler);
-
+    _parser.oob("+IPD", callback(this, &ESP8266::_packet_handler));
+    	
     return success;
 }
 
@@ -291,22 +296,22 @@ bool ESP8266::close(int id)
 
 void ESP8266::setTimeout(uint32_t timeout_ms)
 {
-    _parser.setTimeout(timeout_ms);
+    _parser.set_timeout(timeout_ms);
 }
 
 bool ESP8266::readable()
 {
-    return _serial.readable();
+    return _serial.FileHandle::readable();
 }
 
 bool ESP8266::writeable()
 {
-    return _serial.writeable();
+    return _serial.FileHandle::writable();
 }
 
 void ESP8266::attach(Callback<void()> func)
 {
-    _serial.attach(func);
+    _serial.sigio(func);
 }
 
 bool ESP8266::recv_ap(nsapi_wifi_ap_t *ap)
