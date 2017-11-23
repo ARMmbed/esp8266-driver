@@ -143,7 +143,7 @@ int8_t ESP8266::getRSSI()
     char bssid[18];
 
    if (!(_parser.send("AT+CWJAP_CUR?")
-        && _parser.recv("+CWJAP_CUR::\"%*[^\"]\",\"%17[^\"]\"", bssid)
+        && _parser.recv("+CWJAP_CUR:\"%*[^\"]\",\"%17[^\"]\"", bssid)
         && _parser.recv("OK"))) {
         return 0;
     }
