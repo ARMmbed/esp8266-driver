@@ -41,6 +41,8 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug)
 {
     memset(_ids, 0, sizeof(_ids));
     memset(_cbs, 0, sizeof(_cbs));
+    memset(ap_ssid, 0, sizeof(ap_ssid));
+    memset(ap_pass, 0, sizeof(ap_pass));
 
     _esp.attach(this, &ESP8266Interface::event);
 }
@@ -80,6 +82,10 @@ int ESP8266Interface::connect()
 
     if (!_esp.dhcp(true, 1)) {
         return NSAPI_ERROR_DHCP_FAILURE;
+    }
+
+    if(ap_ssid[0] == 0) {
+        return NSAPI_ERROR_PARAMETER;
     }
 
     if (!_esp.connect(ap_ssid, ap_pass)) {
