@@ -88,8 +88,8 @@ int ESP8266Interface::connect()
         return NSAPI_ERROR_DHCP_FAILURE;
     }
 
-    if (!_esp.connect(ap_ssid, ap_pass)) {
-        return NSAPI_ERROR_NO_CONNECTION;
+    if (int connect_error = _esp.connect(ap_ssid, ap_pass)) {
+        return connect_error;
     }
 
     if (!_esp.getIPAddress()) {

@@ -65,7 +65,7 @@ public:
     * @param passPhrase the password of AP
     * @return true only if ESP8266 is connected successfully
     */
-    bool connect(const char *ap, const char *passPhrase);
+    int connect(const char *ap, const char *passPhrase);
 
     /**
     * Disconnect ESP8266 from AP

@@ -82,10 +82,31 @@ bool ESP8266::dhcp(bool enabled, int mode)
         && _parser.recv("OK");
 }
 
-bool ESP8266::connect(const char *ap, const char *passPhrase)
+int ESP8266::connect(const char *ap, const char *passPhrase)
 {
-    return _parser.send("AT+CWJAP_CUR=\"%s\",\"%s\"", ap, passPhrase)
-        && _parser.recv("OK");
+    int error_code = 0;
+    bool err = false;
+
+    _parser.send("AT+CWJAP_CUR=\"%s\",\"%s\"", ap, passPhrase);
+    //if we don't get a +CWJAP and error code as a response, connection was success
+    //Note: espressif at command document says that this should be +CWJAP_CUR:<error code>
+    //but seems that at least current version is not sending it
+    //https://www.espressif.com/sites/default/files/documentation/4a-esp8266_at_instruction_set_en.pdf
+    //Also seems that ERROR is not sent
+    err = _parser.recv("+CWJAP:%d", &error_code);
+    if(err) {
+        _parser.recv("FAIL");
+        if(error_code == 1)
+            return NSAPI_ERROR_CONNECTION_TIMEOUT;
+        else if(error_code == 2)
+            return NSAPI_ERROR_AUTH_FAILURE;
+        else if(error_code == 3)
+            return NSAPI_ERROR_NO_SSID;
+        else
+            return NSAPI_ERROR_NO_CONNECTION;
+    } else {
+        return NSAPI_ERROR_OK;
+    }
 }
 
 bool ESP8266::disconnect(void)
