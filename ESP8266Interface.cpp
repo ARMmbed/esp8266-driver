@@ -41,6 +41,8 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug)
 {
     memset(_ids, 0, sizeof(_ids));
     memset(_cbs, 0, sizeof(_cbs));
+    memset(ap_ssid, 0, sizeof(ap_ssid));
+    memset(ap_pass, 0, sizeof(ap_pass));
 
     _esp.attach(this, &ESP8266Interface::event);
 }
@@ -52,7 +54,11 @@ int ESP8266Interface::connect(const char *ssid, const char *pass, nsapi_security
         return NSAPI_ERROR_UNSUPPORTED;
     }
 
-    set_credentials(ssid, pass, security);
+    int err = set_credentials(ssid, pass, security);
+    if(err) {
+        return err;
+    }
+
     return connect();
 }
 
@@ -81,9 +87,9 @@ int ESP8266Interface::connect()
     if (!_esp.dhcp(true, 1)) {
         return NSAPI_ERROR_DHCP_FAILURE;
     }
-
-    if (!_esp.connect(ap_ssid, ap_pass)) {
-        return NSAPI_ERROR_NO_CONNECTION;
+    int connect_error = _esp.connect(ap_ssid, ap_pass);
+    if (connect_error) {
+        return connect_error;
     }
 
     if (!_esp.getIPAddress()) {
@@ -95,15 +101,41 @@ int ESP8266Interface::connect()
 
 int ESP8266Interface::set_credentials(const char *ssid, const char *pass, nsapi_security_t security)
 {
-    memset(ap_ssid, 0, sizeof(ap_ssid));
-    strncpy(ap_ssid, ssid, sizeof(ap_ssid));
-
-    memset(ap_pass, 0, sizeof(ap_pass));
-    strncpy(ap_pass, pass, sizeof(ap_pass));
-
     ap_sec = security;
 
-    return 0;
+    if (!ssid) {
+        return NSAPI_ERROR_PARAMETER;
+    }
+
+    int ssid_length = strlen(ssid);
+
+    if (ssid_length > 0
+        && ssid_length <= ESP8266_SSID_MAX_LENGTH) {
+        memset(ap_ssid, 0, sizeof(ap_ssid));
+        strncpy(ap_ssid, ssid, sizeof(ap_ssid));
+    } else {
+        return NSAPI_ERROR_PARAMETER;
+    }
+
+    if (ap_sec != NSAPI_SECURITY_NONE) {
+
+        if (!pass) {
+            return NSAPI_ERROR_PARAMETER;
+        }
+
+        int pass_length = strlen(pass);
+        if (pass_length >= ESP8266_PASSPHRASE_MIN_LENGTH
+            && pass_length <= ESP8266_PASSPHRASE_MAX_LENGTH ) {
+            memset(ap_pass, 0, sizeof(ap_pass));
+            strncpy(ap_pass, pass, sizeof(ap_pass));
+        } else {
+            return NSAPI_ERROR_PARAMETER;
+        }
+    } else {
+        memset(ap_pass, 0, sizeof(ap_pass));
+    }
+
+    return NSAPI_ERROR_OK;
 }
 
 int ESP8266Interface::set_channel(uint8_t channel)
