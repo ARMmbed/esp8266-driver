@@ -63,9 +63,9 @@ public:
     *
     * @param ap the name of the AP
     * @param passPhrase the password of AP
-    * @return true only if ESP8266 is connected successfully
+    * @return NSAPI_ERROR_OK only if ESP8266 is connected successfully
     */
-    int connect(const char *ap, const char *passPhrase);
+    nsapi_error_t connect(const char *ap, const char *passPhrase);
 
     /**
     * Disconnect ESP8266 from AP
@@ -217,12 +217,16 @@ private:
         // data follows
     } *_packets, **_packets_end;
     void _packet_handler();
+    void _connect_error_handler();
     bool recv_ap(nsapi_wifi_ap_t *ap);
 
     char _ip_buffer[16];
     char _gateway_buffer[16];
     char _netmask_buffer[16];
     char _mac_buffer[18];
+
+    int _connect_error;
+    bool _fail;
 };
 
 #endif

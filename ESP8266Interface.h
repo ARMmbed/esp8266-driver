@@ -23,10 +23,6 @@
 
 #define ESP8266_SOCKET_COUNT 5
 
-#define SSID_MAX_LENGTH 32 /* 32 is what 802.11 defines as longest possible name; +1 for the \0 */
-#define PASSPHRASE_MAX_LENGTH 63 /* The longest allowed passphrase */
-#define PASSPHRASE_MIN_LENGTH 8 /* The shortest allowed passphrase */
-
 /** ESP8266Interface class
  *  Implementation of the NetworkStack for the ESP8266
  */
@@ -260,13 +256,17 @@ protected:
     }
 
 private:
+    static const int ESP8266_SSID_MAX_LENGTH = 32; /* 32 is what 802.11 defines as longest possible name */
+    static const int ESP8266_PASSPHRASE_MAX_LENGTH = 63; /* The longest allowed passphrase */
+    static const int ESP8266_PASSPHRASE_MIN_LENGTH = 8; /* The shortest allowed passphrase */
+
     ESP8266 _esp;
     bool _ids[ESP8266_SOCKET_COUNT];
 
-    char ap_ssid[SSID_MAX_LENGTH + 1]; /* 32 is what 802.11 defines as longest possible name; +1 for the \0 */
+    char ap_ssid[ESP8266_SSID_MAX_LENGTH + 1]; /* 32 is what 802.11 defines as longest possible name; +1 for the \0 */
     nsapi_security_t ap_sec;
     uint8_t ap_ch;
-    char ap_pass[PASSPHRASE_MAX_LENGTH + 1]; /* The longest allowed passphrase */
+    char ap_pass[ESP8266_PASSPHRASE_MAX_LENGTH + 1];
 
     void event();
 

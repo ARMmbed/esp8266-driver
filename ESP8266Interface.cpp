@@ -87,8 +87,8 @@ int ESP8266Interface::connect()
     if (!_esp.dhcp(true, 1)) {
         return NSAPI_ERROR_DHCP_FAILURE;
     }
-
-    if (int connect_error = _esp.connect(ap_ssid, ap_pass)) {
+    int connect_error = _esp.connect(ap_ssid, ap_pass);
+    if (connect_error) {
         return connect_error;
     }
 
@@ -103,28 +103,29 @@ int ESP8266Interface::set_credentials(const char *ssid, const char *pass, nsapi_
 {
     ap_sec = security;
 
-    if(!ssid) {
+    if (!ssid) {
         return NSAPI_ERROR_PARAMETER;
     }
 
     int ssid_length = strlen(ssid);
 
-    if(ssid_length > 0 && ssid_length <= SSID_MAX_LENGTH) {
+    if (ssid_length > 0
+        && ssid_length <= ESP8266_SSID_MAX_LENGTH) {
         memset(ap_ssid, 0, sizeof(ap_ssid));
         strncpy(ap_ssid, ssid, sizeof(ap_ssid));
     } else {
         return NSAPI_ERROR_PARAMETER;
     }
 
-    if(ap_sec != NSAPI_SECURITY_NONE) {
+    if (ap_sec != NSAPI_SECURITY_NONE) {
 
-        if(!pass) {
+        if (!pass) {
             return NSAPI_ERROR_PARAMETER;
         }
 
         int pass_length = strlen(pass);
-        if(pass_length >= PASSPHRASE_MIN_LENGTH && pass_length <= PASSPHRASE_MAX_LENGTH )
-        {
+        if (pass_length >= ESP8266_PASSPHRASE_MIN_LENGTH
+            && pass_length <= ESP8266_PASSPHRASE_MAX_LENGTH ) {
             memset(ap_pass, 0, sizeof(ap_pass));
             strncpy(ap_pass, pass, sizeof(ap_pass));
         } else {
