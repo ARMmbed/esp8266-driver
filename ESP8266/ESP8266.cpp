@@ -15,6 +15,7 @@
  */
 
 #include "ESP8266.h"
+#include <string.h>
 
 #define   ESP8266_DEFAULT_BAUD_RATE   115200
 
@@ -82,7 +83,7 @@ bool ESP8266::dhcp(bool enabled, int mode)
         return false;
     }
 
-    return _parser.send("AT+CWDHCP_CUR=%d,%d", enabled?1:0, mode)
+    return _parser.send("AT+CWDHCP_CUR=%d,%d", mode, enabled?1:0)
         && _parser.recv("OK");
 }
 
@@ -120,6 +121,10 @@ const char *ESP8266::getIPAddress(void)
     if (!(_parser.send("AT+CIFSR")
         && _parser.recv("+CIFSR:STAIP,\"%15[^\"]\"", _ip_buffer)
         && _parser.recv("OK"))) {
+        return 0;
+    }
+
+    if(std::strncmp(_ip_buffer, "0.0.0.0", sizeof(*_ip_buffer)) == 0) {
         return 0;
     }
 
