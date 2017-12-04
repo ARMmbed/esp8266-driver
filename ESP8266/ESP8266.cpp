@@ -35,8 +35,6 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
     //https://www.espressif.com/sites/default/files/documentation/4a-esp8266_at_instruction_set_en.pdf
     //Also seems that ERROR is not sent, but FAIL instead
     _parser.oob("+CWJAP:", callback(this, &ESP8266::_connect_error_handler));
-    //For future
-    _parser.oob("+CWJAP_CUR:", callback(this, &ESP8266::_connect_error_handler));
 }
 
 int ESP8266::get_firmware_version()
