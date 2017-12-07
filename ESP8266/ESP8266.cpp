@@ -15,7 +15,7 @@
  */
 
 #include "ESP8266.h"
-#include <string.h>
+#include <cstring>
 
 #define   ESP8266_DEFAULT_BAUD_RATE   115200
 
@@ -124,10 +124,6 @@ const char *ESP8266::getIPAddress(void)
         return 0;
     }
 
-    if(std::strncmp(_ip_buffer, "0.0.0.0", sizeof(*_ip_buffer)) == 0) {
-        return 0;
-    }
-
     return _ip_buffer;
 }
 
@@ -186,7 +182,13 @@ int8_t ESP8266::getRSSI()
 
 bool ESP8266::isConnected(void)
 {
-    return getIPAddress() != 0;
+    const char *ip_buff = getIPAddress();
+
+    if(!ip_buff || std::strcmp(ip_buff, "0.0.0.0") == 0) {
+        return 0;
+    }
+
+    return ip_buff;
 }
 
 int ESP8266::scan(WiFiAccessPoint *res, unsigned limit)
