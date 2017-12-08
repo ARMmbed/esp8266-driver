@@ -185,10 +185,10 @@ bool ESP8266::isConnected(void)
     const char *ip_buff = getIPAddress();
 
     if(!ip_buff || std::strcmp(ip_buff, "0.0.0.0") == 0) {
-        return 0;
+        return false;
     }
 
-    return ip_buff;
+    return true;
 }
 
 int ESP8266::scan(WiFiAccessPoint *res, unsigned limit)

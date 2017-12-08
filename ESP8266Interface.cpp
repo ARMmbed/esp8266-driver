@@ -65,18 +65,21 @@ int ESP8266Interface::connect(const char *ssid, const char *pass, nsapi_security
 
 int ESP8266Interface::connect()
 {
-    nsapi_error_t fw_status = get_firmware_ok();
-    size_t ssid_length = strlen(ap_ssid);
-    size_t pass_length = strlen(ap_pass);
+    const size_t ssid_length = strlen(ap_ssid);
+    const size_t pass_length = strlen(ap_pass);
 
     _esp.setTimeout(ESP8266_MISC_TIMEOUT);
 
     if(_esp.isConnected()) {
-        return NSAPI_ERROR_ALREADY;
+        return NSAPI_ERROR_IS_CONNECTED;
     }
 
     _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
     if (!_esp.reset()) {
+        return NSAPI_ERROR_DEVICE_ERROR;
+    }
+
+    if (get_firmware_ok() != NSAPI_ERROR_OK) {
         return NSAPI_ERROR_DEVICE_ERROR;
     }
 
@@ -88,10 +91,6 @@ int ESP8266Interface::connect()
         if (pass_length < ESP8266_PASSPHRASE_MIN_LENGTH) {
             return NSAPI_ERROR_PARAMETER;
         }
-    }
-
-    if (fw_status != NSAPI_ERROR_OK) {
-        return fw_status;
     }
 
     _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
