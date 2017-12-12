@@ -15,6 +15,7 @@
  */
 
 #include "ESP8266.h"
+#include <cstring>
 
 #define   ESP8266_DEFAULT_BAUD_RATE   115200
 
@@ -82,7 +83,7 @@ bool ESP8266::dhcp(bool enabled, int mode)
         return false;
     }
 
-    return _parser.send("AT+CWDHCP_CUR=%d,%d", enabled?1:0, mode)
+    return _parser.send("AT+CWDHCP_CUR=%d,%d", mode, enabled?1:0)
         && _parser.recv("OK");
 }
 
@@ -181,7 +182,13 @@ int8_t ESP8266::getRSSI()
 
 bool ESP8266::isConnected(void)
 {
-    return getIPAddress() != 0;
+    const char *ip_buff = getIPAddress();
+
+    if(!ip_buff || std::strcmp(ip_buff, "0.0.0.0") == 0) {
+        return false;
+    }
+
+    return true;
 }
 
 int ESP8266::scan(WiFiAccessPoint *res, unsigned limit)

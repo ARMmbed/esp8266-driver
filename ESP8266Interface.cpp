@@ -43,6 +43,7 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug)
     memset(_cbs, 0, sizeof(_cbs));
     memset(ap_ssid, 0, sizeof(ap_ssid));
     memset(ap_pass, 0, sizeof(ap_pass));
+    ap_sec = NSAPI_SECURITY_UNKNOWN;
 
     _esp.attach(this, &ESP8266Interface::event);
 }
@@ -64,20 +65,34 @@ int ESP8266Interface::connect(const char *ssid, const char *pass, nsapi_security
 
 int ESP8266Interface::connect()
 {
+    const size_t ssid_length = strlen(ap_ssid);
+    const size_t pass_length = strlen(ap_pass);
+
+    _esp.setTimeout(ESP8266_MISC_TIMEOUT);
+
+    if(_esp.isConnected()) {
+        return NSAPI_ERROR_IS_CONNECTED;
+    }
+
     _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
-    
     if (!_esp.reset()) {
         return NSAPI_ERROR_DEVICE_ERROR;
-    }   
- 
-    _esp.setTimeout(ESP8266_MISC_TIMEOUT);
-    
-    if (_esp.get_firmware_version() != ESP8266_VERSION) {
-        debug("ESP8266: ERROR: Firmware incompatible with this driver.\
-               \r\nUpdate to v%d - https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update\r\n",ESP8266_VERSION); 
+    }
+
+    if (get_firmware_ok() != NSAPI_ERROR_OK) {
         return NSAPI_ERROR_DEVICE_ERROR;
     }
-    
+
+    if (ssid_length == 0) {
+        return NSAPI_ERROR_NO_SSID;
+    }
+
+    if (ap_sec != NSAPI_SECURITY_NONE) {
+        if (pass_length < ESP8266_PASSPHRASE_MIN_LENGTH) {
+            return NSAPI_ERROR_PARAMETER;
+        }
+    }
+
     _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
 
     if (!_esp.startup(3)) {
@@ -182,7 +197,33 @@ int8_t ESP8266Interface::get_rssi()
 
 int ESP8266Interface::scan(WiFiAccessPoint *res, unsigned count)
 {
+    nsapi_error_t fw_status = get_firmware_ok();
+
+    if (fw_status != NSAPI_ERROR_OK) {
+        return fw_status;
+    }
+
+    _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
+    if(!_esp.isConnected()) {
+        if (!_esp.reset() || !_esp.startup(1)) {
+            return NSAPI_ERROR_DEVICE_ERROR;
+        }
+    }
+
     return _esp.scan(res, count);
+}
+
+nsapi_error_t ESP8266Interface::get_firmware_ok() {
+
+    _esp.setTimeout(ESP8266_MISC_TIMEOUT);
+
+    if (_esp.get_firmware_version() != ESP8266_VERSION) {
+        debug("ESP8266: ERROR: Firmware incompatible with this driver.\
+               \r\nUpdate to v%d - https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update\r\n",ESP8266_VERSION);
+        return NSAPI_ERROR_DEVICE_ERROR;
+    }
+
+    return NSAPI_ERROR_OK;
 }
 
 struct esp8266_socket {
