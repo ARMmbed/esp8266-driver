@@ -206,6 +206,22 @@ public:
         attach(Callback<void()>(obj, method));
     }
 
+    /**
+     * Read default Wifi mode from flash
+     *
+     * return Station, SoftAP or SoftAP+Station - 0 on failure
+     */
+    int8_t get_default_wifi_mode();
+
+    /**
+     * Write default Wifi mode to flash
+     */
+    bool set_default_wifi_mode(const int8_t mode);
+
+    static const int8_t WIFIMODE_STATION = 1;
+    static const int8_t WIFIMODE_SOFTAP = 2;
+    static const int8_t WIFIMODE_STATION_SOFTAP = 3;
+
 private:
     UARTSerial _serial;
     ATCmdParser _parser;

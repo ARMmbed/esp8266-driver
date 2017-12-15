@@ -256,7 +256,6 @@ protected:
     }
 
 private:
-    nsapi_error_t get_firmware_ok();
     static const int ESP8266_SSID_MAX_LENGTH = 32; /* 32 is what 802.11 defines as longest possible name */
     static const int ESP8266_PASSPHRASE_MAX_LENGTH = 63; /* The longest allowed passphrase */
     static const int ESP8266_PASSPHRASE_MIN_LENGTH = 8; /* The shortest allowed passphrase */
@@ -269,7 +268,9 @@ private:
     uint8_t ap_ch;
     char ap_pass[ESP8266_PASSPHRASE_MAX_LENGTH + 1];
 
+    bool disable_default_softap();
     void event();
+    nsapi_error_t get_firmware_ok();
 
     struct {
         void (*callback)(void *);

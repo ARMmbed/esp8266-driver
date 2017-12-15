@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-#include <string.h>
+#include <cstring>
+#include "ESP8266.h"
 #include "ESP8266Interface.h"
 #include "mbed_debug.h"
 
@@ -69,13 +70,17 @@ int ESP8266Interface::connect()
     const size_t pass_length = strlen(ap_pass);
 
     _esp.setTimeout(ESP8266_MISC_TIMEOUT);
-
     if(_esp.isConnected()) {
         return NSAPI_ERROR_IS_CONNECTED;
     }
 
     _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
     if (!_esp.reset()) {
+        return NSAPI_ERROR_DEVICE_ERROR;
+    }
+
+    _esp.setTimeout(ESP8266_MISC_TIMEOUT);
+    if (disable_default_softap() == false) {
         return NSAPI_ERROR_DEVICE_ERROR;
     }
 
@@ -95,7 +100,7 @@ int ESP8266Interface::connect()
 
     _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
 
-    if (!_esp.startup(3)) {
+    if (!_esp.startup(ESP8266::WIFIMODE_STATION)) {
         return NSAPI_ERROR_DEVICE_ERROR;
     }
 
@@ -197,26 +202,31 @@ int8_t ESP8266Interface::get_rssi()
 
 int ESP8266Interface::scan(WiFiAccessPoint *res, unsigned count)
 {
-    nsapi_error_t fw_status = get_firmware_ok();
-
-    if (fw_status != NSAPI_ERROR_OK) {
-        return fw_status;
-    }
-
-    _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
+    _esp.setTimeout(ESP8266_MISC_TIMEOUT);
     if(!_esp.isConnected()) {
-        if (!_esp.reset() || !_esp.startup(1)) {
+        _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
+        if (!_esp.reset()) {
+            return NSAPI_ERROR_DEVICE_ERROR;
+        }
+
+        _esp.setTimeout(ESP8266_MISC_TIMEOUT);
+        if (get_firmware_ok() != NSAPI_ERROR_OK) {
+            return NSAPI_ERROR_DEVICE_ERROR;
+        }
+        if (disable_default_softap() == false) {
+            return NSAPI_ERROR_DEVICE_ERROR;
+        }
+        if(_esp.startup(ESP8266::WIFIMODE_STATION) == false) {
             return NSAPI_ERROR_DEVICE_ERROR;
         }
     }
 
+    _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
     return _esp.scan(res, count);
 }
 
-nsapi_error_t ESP8266Interface::get_firmware_ok() {
-
-    _esp.setTimeout(ESP8266_MISC_TIMEOUT);
-
+nsapi_error_t ESP8266Interface::get_firmware_ok()
+{
     if (_esp.get_firmware_version() != ESP8266_VERSION) {
         debug("ESP8266: ERROR: Firmware incompatible with this driver.\
                \r\nUpdate to v%d - https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update\r\n",ESP8266_VERSION);
@@ -224,6 +234,15 @@ nsapi_error_t ESP8266Interface::get_firmware_ok() {
     }
 
     return NSAPI_ERROR_OK;
+}
+
+bool ESP8266Interface::disable_default_softap()
+{
+    if (_esp.get_default_wifi_mode() == ESP8266::WIFIMODE_STATION) {
+        return true;
+    }
+
+    return _esp.set_default_wifi_mode(ESP8266::WIFIMODE_STATION);
 }
 
 struct esp8266_socket {
