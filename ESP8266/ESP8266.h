@@ -108,13 +108,6 @@ public:
      */
     int8_t getRSSI();
 
-    /**
-    * Check if ESP8266 is conenected
-    *
-    * @return true only if the chip has an IP address
-    */
-    bool isConnected(void);
-
     /** Scan for available networks
      *
      * @param  ap    Pointer to allocated array to store discovered AP

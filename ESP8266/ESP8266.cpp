@@ -180,17 +180,6 @@ int8_t ESP8266::getRSSI()
     return rssi;
 }
 
-bool ESP8266::isConnected(void)
-{
-    const char *ip_buff = getIPAddress();
-
-    if(!ip_buff || std::strcmp(ip_buff, "0.0.0.0") == 0) {
-        return false;
-    }
-
-    return true;
-}
-
 int ESP8266::scan(WiFiAccessPoint *res, unsigned limit)
 {
     unsigned cnt = 0;
@@ -233,7 +222,7 @@ bool ESP8266::send(int id, const void *data, uint32_t amount)
 {
     //May take a second try if device is busy
     for (unsigned i = 0; i < 2; i++) {
-        if (_parser.send("AT+CIPSEND=%d,%d", id, amount)
+        if (_parser.send("AT+CIPSEND=%d,%lu", id, amount)
             && _parser.recv(">")
             && _parser.write((char*)data, (int)amount) >= 0) {
             return true;
@@ -249,7 +238,7 @@ void ESP8266::_packet_handler()
     uint32_t amount;
 
     // parse out the packet
-    if (!_parser.recv(",%d,%d:", &id, &amount)) {
+    if (!_parser.recv(",%d,%lu:", &id, &amount)) {
         return;
     }
 
@@ -384,5 +373,3 @@ bool ESP8266::set_default_wifi_mode(const int8_t mode)
     return _parser.send("AT+CWMODE_DEF=%hhd", mode)
         && _parser.recv("OK");
 }
-
-
