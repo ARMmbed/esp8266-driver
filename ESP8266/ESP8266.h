@@ -108,13 +108,6 @@ public:
      */
     int8_t getRSSI();
 
-    /**
-    * Check if ESP8266 is conenected
-    *
-    * @return true only if the chip has an IP address
-    */
-    bool isConnected(void);
-
     /** Scan for available networks
      *
      * @param  ap    Pointer to allocated array to store discovered AP
@@ -205,6 +198,22 @@ public:
     void attach(T *obj, M method) {
         attach(Callback<void()>(obj, method));
     }
+
+    /**
+     * Read default Wifi mode from flash
+     *
+     * return Station, SoftAP or SoftAP+Station - 0 on failure
+     */
+    int8_t get_default_wifi_mode();
+
+    /**
+     * Write default Wifi mode to flash
+     */
+    bool set_default_wifi_mode(const int8_t mode);
+
+    static const int8_t WIFIMODE_STATION = 1;
+    static const int8_t WIFIMODE_SOFTAP = 2;
+    static const int8_t WIFIMODE_STATION_SOFTAP = 3;
 
 private:
     UARTSerial _serial;
