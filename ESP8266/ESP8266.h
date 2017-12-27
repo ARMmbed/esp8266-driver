@@ -18,6 +18,7 @@
 #define ESP8266_H
 
 #include "ATCmdParser.h"
+#include "rtos.h"
 
 /** ESP8266Interface class.
     This is an interface to a ESP8266 radio.
@@ -218,6 +219,7 @@ public:
 private:
     UARTSerial _serial;
     ATCmdParser _parser;
+    Mutex _smutex; // Protect serial port access
 
     struct packet {
         struct packet *next;

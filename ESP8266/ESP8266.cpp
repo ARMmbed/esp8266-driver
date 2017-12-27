@@ -40,15 +40,20 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
 
 int ESP8266::get_firmware_version()
 {
-    _parser.send("AT+GMR");
     int version;
-    if (_parser.recv("SDK version:%d", &version) && _parser.recv("OK")) {
+
+    _smutex.lock();
+    bool done = _parser.send("AT+GMR")
+           && _parser.recv("SDK version:%d", &version)
+           && _parser.recv("OK");
+    _smutex.unlock();
+
+    if(done) {
         return version;
     } else { 
         // Older firmware versions do not prefix the version with "SDK version: "
         return -1;
     }
-    
 }
 
 bool ESP8266::startup(int mode)
@@ -58,20 +63,28 @@ bool ESP8266::startup(int mode)
         return false;
     }
 
-    return _parser.send("AT+CWMODE_CUR=%d", mode)
-        && _parser.recv("OK")
-        && _parser.send("AT+CIPMUX=1")
-        && _parser.recv("OK");
+    _smutex.lock();
+    bool done = _parser.send("AT+CWMODE_CUR=%d", mode)
+            && _parser.recv("OK")
+            &&_parser.send("AT+CIPMUX=1")
+            && _parser.recv("OK");
+    _smutex.unlock();
+
+    return done;
 }
 
 bool ESP8266::reset(void)
 {
+    _smutex.lock();
     for (int i = 0; i < 2; i++) {
         if (_parser.send("AT+RST")
-            && _parser.recv("OK\r\nready")) {
+            && _parser.recv("OK")
+            && _parser.recv("ready")) {
+            _smutex.unlock();
             return true;
         }
     }
+    _smutex.unlock();
 
     return false;
 }
@@ -83,15 +96,21 @@ bool ESP8266::dhcp(bool enabled, int mode)
         return false;
     }
 
-    return _parser.send("AT+CWDHCP_CUR=%d,%d", mode, enabled?1:0)
-        && _parser.recv("OK");
+    _smutex.lock();
+    bool done = _parser.send("AT+CWDHCP_CUR=%d,%d", mode, enabled?1:0)
+                && _parser.recv("OK");
+    _smutex.unlock();
+
+    return done;
 }
 
 nsapi_error_t ESP8266::connect(const char *ap, const char *passPhrase)
 {
+    _smutex.lock();
     _parser.send("AT+CWJAP_CUR=\"%s\",\"%s\"", ap, passPhrase);
     if (!_parser.recv("OK")) {
         if (_fail) {
+            _smutex.unlock();
             nsapi_error_t ret;
             if (_connect_error == 1)
                 ret = NSAPI_ERROR_CONNECTION_TIMEOUT;
@@ -107,55 +126,72 @@ nsapi_error_t ESP8266::connect(const char *ap, const char *passPhrase)
             return ret;
         }
     }
+    _smutex.unlock();
 
     return NSAPI_ERROR_OK;
 }
 
 bool ESP8266::disconnect(void)
 {
-    return _parser.send("AT+CWQAP") && _parser.recv("OK");
+    _smutex.lock();
+    bool done = _parser.send("AT+CWQAP") && _parser.recv("OK");
+    _smutex.unlock();
+
+    return done;
 }
 
 const char *ESP8266::getIPAddress(void)
 {
+    _smutex.lock();
     if (!(_parser.send("AT+CIFSR")
         && _parser.recv("+CIFSR:STAIP,\"%15[^\"]\"", _ip_buffer)
         && _parser.recv("OK"))) {
+        _smutex.unlock();
         return 0;
     }
+    _smutex.unlock();
 
     return _ip_buffer;
 }
 
 const char *ESP8266::getMACAddress(void)
 {
+    _smutex.lock();
     if (!(_parser.send("AT+CIFSR")
         && _parser.recv("+CIFSR:STAMAC,\"%17[^\"]\"", _mac_buffer)
         && _parser.recv("OK"))) {
+        _smutex.unlock();
         return 0;
     }
+    _smutex.unlock();
 
     return _mac_buffer;
 }
 
 const char *ESP8266::getGateway()
 {
+    _smutex.lock();
     if (!(_parser.send("AT+CIPSTA_CUR?")
         && _parser.recv("+CIPSTA_CUR:gateway:\"%15[^\"]\"", _gateway_buffer)
         && _parser.recv("OK"))) {
+        _smutex.unlock();
         return 0;
     }
+    _smutex.unlock();
 
     return _gateway_buffer;
 }
 
 const char *ESP8266::getNetmask()
 {
+    _smutex.lock();
     if (!(_parser.send("AT+CIPSTA_CUR?")
         && _parser.recv("+CIPSTA_CUR:netmask:\"%15[^\"]\"", _netmask_buffer)
         && _parser.recv("OK"))) {
+        _smutex.unlock();
         return 0;
     }
+    _smutex.unlock();
 
     return _netmask_buffer;
 }
@@ -165,17 +201,23 @@ int8_t ESP8266::getRSSI()
     int8_t rssi;
     char bssid[18];
 
+    _smutex.lock();
    if (!(_parser.send("AT+CWJAP_CUR?")
         && _parser.recv("+CWJAP_CUR:\"%*[^\"]\",\"%17[^\"]\"", bssid)
         && _parser.recv("OK"))) {
+       _smutex.unlock();
         return 0;
     }
+   _smutex.unlock();
 
+   _smutex.lock();
     if (!(_parser.send("AT+CWLAP=\"\",\"%s\",", bssid)
         && _parser.recv("+CWLAP:(%*d,\"%*[^\"]\",%hhd,", &rssi)
         && _parser.recv("OK"))) {
+        _smutex.unlock();
         return 0;
     }
+    _smutex.unlock();
 
     return rssi;
 }
@@ -185,7 +227,9 @@ int ESP8266::scan(WiFiAccessPoint *res, unsigned limit)
     unsigned cnt = 0;
     nsapi_wifi_ap_t ap;
 
+    _smutex.lock();
     if (!_parser.send("AT+CWLAP")) {
+        _smutex.unlock();
         return NSAPI_ERROR_DEVICE_ERROR;
     }
 
@@ -199,6 +243,7 @@ int ESP8266::scan(WiFiAccessPoint *res, unsigned limit)
             break;
         }
     }
+    _smutex.unlock();
 
     return cnt;
 }
@@ -209,24 +254,35 @@ bool ESP8266::open(const char *type, int id, const char* addr, int port)
     if (id > 4) {
         return false;
     }
-    return _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port)
-        && _parser.recv("OK");
+    _smutex.lock();
+    bool done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port)
+                && _parser.recv("OK");
+    _smutex.unlock();
+
+    return done;
 }
 
 bool ESP8266::dns_lookup(const char* name, char* ip)
 {
-    return _parser.send("AT+CIPDOMAIN=\"%s\"", name) && _parser.recv("+CIPDOMAIN:%s%*[\r]%*[\n]", ip);
+    _smutex.lock();
+    bool done = _parser.send("AT+CIPDOMAIN=\"%s\"", name) && _parser.recv("+CIPDOMAIN:%s%*[\r]%*[\n]", ip);
+    _smutex.unlock();
+
+    return done;
 }
 
 bool ESP8266::send(int id, const void *data, uint32_t amount)
 {
     //May take a second try if device is busy
     for (unsigned i = 0; i < 2; i++) {
+        _smutex.lock();
         if (_parser.send("AT+CIPSEND=%d,%lu", id, amount)
             && _parser.recv(">")
             && _parser.write((char*)data, (int)amount) >= 0) {
+            _smutex.unlock();
             return true;
         }
+        _smutex.unlock();
     }
 
     return false;
@@ -264,49 +320,55 @@ void ESP8266::_packet_handler()
 
 int32_t ESP8266::recv(int id, void *data, uint32_t amount)
 {
-    while (true) {
-        // check if any packets are ready for us
-        for (struct packet **p = &_packets; *p; p = &(*p)->next) {
-            if ((*p)->id == id) {
-                struct packet *q = *p;
+    _smutex.lock();
+    // Poll for inbound packets
+    while (_parser.process_oob()) {
+    }
 
-                if (q->len <= amount) { // Return and remove full packet
-                    memcpy(data, q+1, q->len);
+    // check if any packets are ready for us
+    for (struct packet **p = &_packets; *p; p = &(*p)->next) {
+        if ((*p)->id == id) {
+            struct packet *q = *p;
 
-                    if (_packets_end == &(*p)->next) {
-                        _packets_end = p;
-                    }
-                    *p = (*p)->next;
+            if (q->len <= amount) { // Return and remove full packet
+                memcpy(data, q+1, q->len);
 
-                    uint32_t len = q->len;
-                    free(q);
-                    return len;
-                } else { // return only partial packet
-                    memcpy(data, q+1, amount);
-
-                    q->len -= amount;
-                    memmove(q+1, (uint8_t*)(q+1) + amount, q->len);
-
-                    return amount;
+                if (_packets_end == &(*p)->next) {
+                    _packets_end = p;
                 }
+                *p = (*p)->next;
+                _smutex.unlock();
+
+                uint32_t len = q->len;
+                free(q);
+                return len;
+            } else { // return only partial packet
+                memcpy(data, q+1, amount);
+
+                q->len -= amount;
+                memmove(q+1, (uint8_t*)(q+1) + amount, q->len);
+
+                _smutex.unlock();
+                return amount;
             }
         }
-
-        // Check for inbound packets
-        if (!_parser.process_oob()) {
-            return -1;
-        }
     }
+    _smutex.unlock();
+
+    return -1;
 }
 
 bool ESP8266::close(int id)
 {
     //May take a second try if device is busy
     for (unsigned i = 0; i < 2; i++) {
+        _smutex.lock();
         if (_parser.send("AT+CIPCLOSE=%d", id)
             && _parser.recv("OK")) {
+            _smutex.unlock();
             return true;
         }
+        _smutex.unlock();
     }
 
     return false;
@@ -359,17 +421,24 @@ int8_t ESP8266::get_default_wifi_mode()
 {
     int8_t mode;
 
+    _smutex.lock();
     if (_parser.send("AT+CWMODE_DEF?")
         && _parser.recv("+CWMODE_DEF:%hhd", &mode)
         && _parser.recv("OK")) {
+        _smutex.unlock();
         return mode;
     }
+    _smutex.unlock();
 
     return 0;
 }
 
 bool ESP8266::set_default_wifi_mode(const int8_t mode)
 {
-    return _parser.send("AT+CWMODE_DEF=%hhd", mode)
-        && _parser.recv("OK");
+    _smutex.lock();
+    bool done = _parser.send("AT+CWMODE_DEF=%hhd", mode)
+                && _parser.recv("OK");
+    _smutex.unlock();
+
+    return done;
 }
