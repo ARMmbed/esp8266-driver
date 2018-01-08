@@ -269,6 +269,7 @@ private:
     nsapi_security_t ap_sec;
     uint8_t ap_ch;
     char ap_pass[ESP8266_PASSPHRASE_MAX_LENGTH + 1];
+    uint16_t _local_ports[ESP8266_SOCKET_COUNT];
 
     bool _disable_default_softap();
     void event();

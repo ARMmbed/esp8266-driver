@@ -135,7 +135,7 @@ public:
     * @param addr the IP address of the destination
     * @return true only if socket opened successfully
     */
-    bool open(const char *type, int id, const char* addr, int port);
+    bool open(const char *type, int id, const char* addr, int port, int local_port=0);
 
     /**
     * Sends data to an open socket

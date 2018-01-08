@@ -248,15 +248,22 @@ int ESP8266::scan(WiFiAccessPoint *res, unsigned limit)
     return cnt;
 }
 
-bool ESP8266::open(const char *type, int id, const char* addr, int port)
+bool ESP8266::open(const char *type, int id, const char* addr, int port, int local_port)
 {
+    bool done;
+
     //IDs only 0-4
     if (id > 4) {
         return false;
     }
     _smutex.lock();
-    bool done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port)
-                && _parser.recv("OK");
+    if(local_port) {
+        done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d,%d", id, type, addr, port, local_port)
+               && _parser.recv("OK");
+    } else {
+        done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port)
+               && _parser.recv("OK");
+    }
     _smutex.unlock();
 
     return done;
