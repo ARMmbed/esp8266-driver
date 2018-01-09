@@ -18,6 +18,7 @@
 #include "ESP8266.h"
 #include "ESP8266Interface.h"
 #include "mbed_debug.h"
+#include "nsapi_types.h"
 
 // Various timeouts for different ESP8266 operations
 #ifndef ESP8266_CONNECT_TIMEOUT
@@ -46,6 +47,7 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug)
     memset(_cbs, 0, sizeof(_cbs));
     memset(ap_ssid, 0, sizeof(ap_ssid));
     memset(ap_pass, 0, sizeof(ap_pass));
+    memset(_local_ports, 0, sizeof(_local_ports));
     ap_sec = NSAPI_SECURITY_UNKNOWN;
 
     _esp.attach(this, &ESP8266Interface::event);
@@ -342,12 +344,31 @@ int ESP8266Interface::socket_close(void *handle)
 
     socket->connected = false;
     _ids[socket->id] = false;
+    _local_ports[socket->id] = 0;
     delete socket;
     return err;
 }
 
 int ESP8266Interface::socket_bind(void *handle, const SocketAddress &address)
 {
+    struct esp8266_socket *socket = (struct esp8266_socket *)handle;
+
+    if (socket->proto == NSAPI_UDP) {
+        if(address.get_addr().version != NSAPI_UNSPEC) {
+            return NSAPI_ERROR_UNSUPPORTED;
+        }
+
+        for(int id = 0; id < ESP8266_SOCKET_COUNT; id++) {
+            if(_local_ports[id] == address.get_port() && id != socket->id) { // Port already reserved by another socket
+                return NSAPI_ERROR_PARAMETER;
+            } else if (id == socket->id && socket->connected) {
+                return NSAPI_ERROR_PARAMETER;
+            }
+        }
+        _local_ports[socket->id] = address.get_port();
+        return 0;
+    }
+
     return NSAPI_ERROR_UNSUPPORTED;
 }
 
@@ -362,10 +383,10 @@ int ESP8266Interface::socket_connect(void *handle, const SocketAddress &addr)
     _esp.setTimeout(ESP8266_MISC_TIMEOUT);
 
     const char *proto = (socket->proto == NSAPI_UDP) ? "UDP" : "TCP";
-    if (!_esp.open(proto, socket->id, addr.get_ip_address(), addr.get_port())) {
+    if (!_esp.open(proto, socket->id, addr.get_ip_address(), addr.get_port(), _local_ports[socket->id])) {
         return NSAPI_ERROR_DEVICE_ERROR;
     }
-    
+
     socket->connected = true;
     return 0;
 }
