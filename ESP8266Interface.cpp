@@ -357,6 +357,14 @@ int ESP8266Interface::socket_bind(void *handle, const SocketAddress &address)
         if(address.get_addr().version != NSAPI_UNSPEC) {
             return NSAPI_ERROR_UNSUPPORTED;
         }
+
+        for(int id = 0; id < ESP8266_SOCKET_COUNT; id++) {
+            if(_local_ports[id] == address.get_port() && id != socket->id) { // Port already reserved by another socket
+                return NSAPI_ERROR_PARAMETER;
+            } else if (id == socket->id && socket->connected) {
+                return NSAPI_ERROR_PARAMETER;
+            }
+        }
         _local_ports[socket->id] = address.get_port();
         return 0;
     }
