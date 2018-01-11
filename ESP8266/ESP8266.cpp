@@ -286,6 +286,7 @@ bool ESP8266::send(int id, const void *data, uint32_t amount)
         if (_parser.send("AT+CIPSEND=%d,%lu", id, amount)
             && _parser.recv(">")
             && _parser.write((char*)data, (int)amount) >= 0) {
+            _parser.process_oob(); // multiple sends in a row require this
             _smutex.unlock();
             return true;
         }
