@@ -45,7 +45,7 @@ int ESP8266::get_firmware_version()
     _smutex.lock();
     bool done = _parser.send("AT+GMR")
            && _parser.recv("SDK version:%d", &version)
-           && _parser.recv("OK");
+           && _parser.recv("OK\n");
     _smutex.unlock();
 
     if(done) {
@@ -65,9 +65,9 @@ bool ESP8266::startup(int mode)
 
     _smutex.lock();
     bool done = _parser.send("AT+CWMODE_CUR=%d", mode)
-            && _parser.recv("OK")
+            && _parser.recv("OK\n")
             &&_parser.send("AT+CIPMUX=1")
-            && _parser.recv("OK");
+            && _parser.recv("OK\n");
     _smutex.unlock();
 
     return done;
@@ -78,7 +78,7 @@ bool ESP8266::reset(void)
     _smutex.lock();
     for (int i = 0; i < 2; i++) {
         if (_parser.send("AT+RST")
-            && _parser.recv("OK")
+            && _parser.recv("OK\n")
             && _parser.recv("ready")) {
             _smutex.unlock();
             return true;
@@ -98,7 +98,7 @@ bool ESP8266::dhcp(bool enabled, int mode)
 
     _smutex.lock();
     bool done = _parser.send("AT+CWDHCP_CUR=%d,%d", mode, enabled?1:0)
-                && _parser.recv("OK");
+                && _parser.recv("OK\n");
     _smutex.unlock();
 
     return done;
@@ -108,7 +108,7 @@ nsapi_error_t ESP8266::connect(const char *ap, const char *passPhrase)
 {
     _smutex.lock();
     _parser.send("AT+CWJAP_CUR=\"%s\",\"%s\"", ap, passPhrase);
-    if (!_parser.recv("OK")) {
+    if (!_parser.recv("OK\n")) {
         if (_fail) {
             _smutex.unlock();
             nsapi_error_t ret;
@@ -134,7 +134,7 @@ nsapi_error_t ESP8266::connect(const char *ap, const char *passPhrase)
 bool ESP8266::disconnect(void)
 {
     _smutex.lock();
-    bool done = _parser.send("AT+CWQAP") && _parser.recv("OK");
+    bool done = _parser.send("AT+CWQAP") && _parser.recv("OK\n");
     _smutex.unlock();
 
     return done;
@@ -145,7 +145,7 @@ const char *ESP8266::getIPAddress(void)
     _smutex.lock();
     if (!(_parser.send("AT+CIFSR")
         && _parser.recv("+CIFSR:STAIP,\"%15[^\"]\"", _ip_buffer)
-        && _parser.recv("OK"))) {
+        && _parser.recv("OK\n"))) {
         _smutex.unlock();
         return 0;
     }
@@ -159,7 +159,7 @@ const char *ESP8266::getMACAddress(void)
     _smutex.lock();
     if (!(_parser.send("AT+CIFSR")
         && _parser.recv("+CIFSR:STAMAC,\"%17[^\"]\"", _mac_buffer)
-        && _parser.recv("OK"))) {
+        && _parser.recv("OK\n"))) {
         _smutex.unlock();
         return 0;
     }
@@ -173,7 +173,7 @@ const char *ESP8266::getGateway()
     _smutex.lock();
     if (!(_parser.send("AT+CIPSTA_CUR?")
         && _parser.recv("+CIPSTA_CUR:gateway:\"%15[^\"]\"", _gateway_buffer)
-        && _parser.recv("OK"))) {
+        && _parser.recv("OK\n"))) {
         _smutex.unlock();
         return 0;
     }
@@ -187,7 +187,7 @@ const char *ESP8266::getNetmask()
     _smutex.lock();
     if (!(_parser.send("AT+CIPSTA_CUR?")
         && _parser.recv("+CIPSTA_CUR:netmask:\"%15[^\"]\"", _netmask_buffer)
-        && _parser.recv("OK"))) {
+        && _parser.recv("OK\n"))) {
         _smutex.unlock();
         return 0;
     }
@@ -204,7 +204,7 @@ int8_t ESP8266::getRSSI()
     _smutex.lock();
    if (!(_parser.send("AT+CWJAP_CUR?")
         && _parser.recv("+CWJAP_CUR:\"%*[^\"]\",\"%17[^\"]\"", bssid)
-        && _parser.recv("OK"))) {
+        && _parser.recv("OK\n"))) {
        _smutex.unlock();
         return 0;
     }
@@ -213,7 +213,7 @@ int8_t ESP8266::getRSSI()
    _smutex.lock();
     if (!(_parser.send("AT+CWLAP=\"\",\"%s\",", bssid)
         && _parser.recv("+CWLAP:(%*d,\"%*[^\"]\",%hhd,", &rssi)
-        && _parser.recv("OK"))) {
+        && _parser.recv("OK\n"))) {
         _smutex.unlock();
         return 0;
     }
@@ -259,10 +259,10 @@ bool ESP8266::open(const char *type, int id, const char* addr, int port, int loc
     _smutex.lock();
     if(local_port) {
         done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d,%d", id, type, addr, port, local_port)
-               && _parser.recv("OK");
+               && _parser.recv("OK\n");
     } else {
         done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port)
-               && _parser.recv("OK");
+               && _parser.recv("OK\n");
     }
     _smutex.unlock();
 
@@ -286,7 +286,7 @@ bool ESP8266::send(int id, const void *data, uint32_t amount)
         if (_parser.send("AT+CIPSEND=%d,%lu", id, amount)
             && _parser.recv(">")
             && _parser.write((char*)data, (int)amount) >= 0) {
-            _parser.process_oob(); // multiple sends in a row require this
+            while (_parser.process_oob()); // multiple sends in a row require this
             _smutex.unlock();
             return true;
         }
@@ -372,7 +372,7 @@ bool ESP8266::close(int id)
     for (unsigned i = 0; i < 2; i++) {
         _smutex.lock();
         if (_parser.send("AT+CIPCLOSE=%d", id)
-            && _parser.recv("OK")) {
+            && _parser.recv("OK\n")) {
             _smutex.unlock();
             return true;
         }
@@ -432,7 +432,7 @@ int8_t ESP8266::get_default_wifi_mode()
     _smutex.lock();
     if (_parser.send("AT+CWMODE_DEF?")
         && _parser.recv("+CWMODE_DEF:%hhd", &mode)
-        && _parser.recv("OK")) {
+        && _parser.recv("OK\n")) {
         _smutex.unlock();
         return mode;
     }
@@ -445,7 +445,7 @@ bool ESP8266::set_default_wifi_mode(const int8_t mode)
 {
     _smutex.lock();
     bool done = _parser.send("AT+CWMODE_DEF=%hhd", mode)
-                && _parser.recv("OK");
+                && _parser.recv("OK\n");
     _smutex.unlock();
 
     return done;
