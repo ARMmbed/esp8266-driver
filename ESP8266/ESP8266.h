@@ -18,6 +18,7 @@
 #define ESP8266_H
 
 #include "ATCmdParser.h"
+#include "nsapi_types.h"
 #include "rtos.h"
 
 /** ESP8266Interface class.
@@ -143,9 +144,9 @@ public:
     * @param id id of socket to send to
     * @param data data to be sent
     * @param amount amount of data to be sent - max 1024
-    * @return true only if data sent successfully
+    * @return NSAPI_ERROR_OK in success, negative error code in failure
     */
-    bool send(int id, const void *data, uint32_t amount);
+    nsapi_error_t send(int id, const void *data, uint32_t amount);
 
     /**
     * Receives data from an open socket
@@ -230,6 +231,14 @@ private:
     void _packet_handler();
     void _connect_error_handler();
     bool recv_ap(nsapi_wifi_ap_t *ap);
+    void _no_more_data(int id);
+    nsapi_error_t _oob_socket_closed(const int id);
+    void _connect_socket0_handler();
+    void _connect_socket1_handler();
+    void _connect_socket2_handler();
+    void _connect_socket3_handler();
+    void _connect_socket4_handler();
+
 
     char _ip_buffer[16];
     char _gateway_buffer[16];
