@@ -31,7 +31,8 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
       _packets(0), 
       _packets_end(&_packets),
       _connect_error(0),
-      _fail(false)
+      _fail(false),
+      _socket_open()
 {
     _serial.set_baud( ESP8266_DEFAULT_BAUD_RATE );
     _parser.debug_on(debug);
@@ -42,11 +43,11 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
     //https://www.espressif.com/sites/default/files/documentation/4a-esp8266_at_instruction_set_en.pdf
     //Also seems that ERROR is not sent, but FAIL instead
     _parser.oob("+CWJAP:", callback(this, &ESP8266::_connect_error_handler));
-    _parser.oob("0,CLOSED", callback(this, &ESP8266::_connect_socket0_handler));
-    _parser.oob("1,CLOSED", callback(this, &ESP8266::_connect_socket1_handler));
-    _parser.oob("2,CLOSED", callback(this, &ESP8266::_connect_socket2_handler));
-    _parser.oob("3,CLOSED", callback(this, &ESP8266::_connect_socket3_handler));
-    _parser.oob("4,CLOSED", callback(this, &ESP8266::_connect_socket4_handler));
+    _parser.oob("0,CLOSED", callback(this, &ESP8266::_oob_socket0_closed_handler));
+    _parser.oob("1,CLOSED", callback(this, &ESP8266::_oob_socket1_closed_handler));
+    _parser.oob("2,CLOSED", callback(this, &ESP8266::_oob_socket2_closed_handler));
+    _parser.oob("3,CLOSED", callback(this, &ESP8266::_oob_socket3_closed_handler));
+    _parser.oob("4,CLOSED", callback(this, &ESP8266::_oob_socket4_closed_handler));
 }
 
 int ESP8266::get_firmware_version()
@@ -263,8 +264,7 @@ bool ESP8266::open(const char *type, int id, const char* addr, int port, int loc
 {
     bool done;
 
-    //IDs only 0-4
-    if (id > 4) {
+    if (id >= SOCKET_COUNT) {
         return false;
     }
     _smutex.lock();
@@ -275,6 +275,7 @@ bool ESP8266::open(const char *type, int id, const char* addr, int port, int loc
         done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port)
                && _parser.recv("OK\n");
     }
+    _socket_open[id] = 1;
     _smutex.unlock();
 
     return done;
@@ -320,7 +321,7 @@ void ESP8266::_packet_handler()
     struct packet *packet = (struct packet*)malloc(
             sizeof(struct packet) + amount);
     if (!packet) {
-        tr_error("Could not allocate memory for TX data");
+        tr_error("Could not allocate memory for RX data");
         return;
     }
 
@@ -373,31 +374,14 @@ int32_t ESP8266::recv(int id, void *data, uint32_t amount)
             }
         }
     }
+    if(!_socket_open[id]) {
+        _smutex.unlock();
+        return 0;
+    }
+
     _smutex.unlock();
 
     return -1;
-}
-
-nsapi_error_t ESP8266::_oob_socket_closed(const int id)
-{
-    // Packet without payload tells there is no more data coming
-    for (struct packet **p = &_packets; *p; p = &(*p)->next) {
-        if ((*p)->id == id) {
-            struct packet *q = *p;
-
-            if (q->len == 0) { // Remove packet
-                if (_packets_end == &(*p)->next) {
-                    _packets_end = p;
-                }
-                *p = (*p)->next;
-
-                free(q);
-                return NSAPI_ERROR_OK;
-            }
-        }
-    }
-
-    return NSAPI_ERROR_DEVICE_ERROR; // Chip hasn't informed about state change
 }
 
 bool ESP8266::close(int id)
@@ -406,7 +390,7 @@ bool ESP8266::close(int id)
     for (unsigned i = 0; i < 2; i++) {
         _smutex.lock();
         if (_parser.send("AT+CIPCLOSE=%d", id) && _parser.recv("OK\n")) {
-            if (_oob_socket_closed(id) == NSAPI_ERROR_OK) { // recv(processing OOBs) needs to be done first
+            if (!_socket_open[id]) { // recv(processing OOBs) needs to be done first
                 _smutex.unlock();
                 return true;
             }
@@ -460,50 +444,29 @@ void ESP8266::_connect_error_handler()
     }
 }
 
-void ESP8266::_no_more_data(const int id)
+void ESP8266::_oob_socket0_closed_handler()
 {
-    static const uint32_t amount = 0;
-
-    struct packet* packet = (struct packet*) (malloc(
-            sizeof(struct packet) + amount));
-
-    if (!packet) {
-        tr_error("Could not allocate memory for TX data");
-        return;
-    }
-
-    packet->id = id;
-    packet->len = amount;
-    packet->next = 0;
-
-    // append to packet list
-    *_packets_end = packet;
-    _packets_end = &packet->next;
+    _socket_open[0] = 0;
 }
 
-void ESP8266::_connect_socket0_handler()
+void ESP8266::_oob_socket1_closed_handler()
 {
-    _no_more_data(0);
+    _socket_open[1] = 0;
 }
 
-void ESP8266::_connect_socket1_handler()
+void ESP8266::_oob_socket2_closed_handler()
 {
-    _no_more_data(1);
+    _socket_open[2] = 0;
 }
 
-void ESP8266::_connect_socket2_handler()
+void ESP8266::_oob_socket3_closed_handler()
 {
-    _no_more_data(2);
+    _socket_open[3] = 0;
 }
 
-void ESP8266::_connect_socket3_handler()
+void ESP8266::_oob_socket4_closed_handler()
 {
-    _no_more_data(3);
-}
-
-void ESP8266::_connect_socket4_handler()
-{
-    _no_more_data(4);
+    _socket_open[4] = 0;
 }
 
 int8_t ESP8266::get_default_wifi_mode()

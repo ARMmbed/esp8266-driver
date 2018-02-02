@@ -216,6 +216,7 @@ public:
     static const int8_t WIFIMODE_STATION = 1;
     static const int8_t WIFIMODE_SOFTAP = 2;
     static const int8_t WIFIMODE_STATION_SOFTAP = 3;
+    static const int8_t SOCKET_COUNT = 5;
 
 private:
     UARTSerial _serial;
@@ -231,13 +232,11 @@ private:
     void _packet_handler();
     void _connect_error_handler();
     bool recv_ap(nsapi_wifi_ap_t *ap);
-    void _no_more_data(int id);
-    nsapi_error_t _oob_socket_closed(const int id);
-    void _connect_socket0_handler();
-    void _connect_socket1_handler();
-    void _connect_socket2_handler();
-    void _connect_socket3_handler();
-    void _connect_socket4_handler();
+    void _oob_socket0_closed_handler();
+    void _oob_socket1_closed_handler();
+    void _oob_socket2_closed_handler();
+    void _oob_socket3_closed_handler();
+    void _oob_socket4_closed_handler();
 
 
     char _ip_buffer[16];
@@ -247,6 +246,7 @@ private:
 
     int _connect_error;
     bool _fail;
+    int _socket_open[SOCKET_COUNT];
 };
 
 #endif
