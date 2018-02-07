@@ -15,9 +15,15 @@
  */
 
 #include "ESP8266.h"
+#include "mbed_trace.h"
+#include "nsapi_types.h"
+
 #include <cstring>
 
-#define   ESP8266_DEFAULT_BAUD_RATE   115200
+
+#define TRACE_GROUP "Wifi"
+#define ESP8266_DEFAULT_BAUD_RATE   115200
+
 
 ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
     : _serial(tx, rx, ESP8266_DEFAULT_BAUD_RATE), 
@@ -25,7 +31,8 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
       _packets(0), 
       _packets_end(&_packets),
       _connect_error(0),
-      _fail(false)
+      _fail(false),
+      _socket_open()
 {
     _serial.set_baud( ESP8266_DEFAULT_BAUD_RATE );
     _parser.debug_on(debug);
@@ -36,6 +43,11 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
     //https://www.espressif.com/sites/default/files/documentation/4a-esp8266_at_instruction_set_en.pdf
     //Also seems that ERROR is not sent, but FAIL instead
     _parser.oob("+CWJAP:", callback(this, &ESP8266::_connect_error_handler));
+    _parser.oob("0,CLOSED", callback(this, &ESP8266::_oob_socket0_closed_handler));
+    _parser.oob("1,CLOSED", callback(this, &ESP8266::_oob_socket1_closed_handler));
+    _parser.oob("2,CLOSED", callback(this, &ESP8266::_oob_socket2_closed_handler));
+    _parser.oob("3,CLOSED", callback(this, &ESP8266::_oob_socket3_closed_handler));
+    _parser.oob("4,CLOSED", callback(this, &ESP8266::_oob_socket4_closed_handler));
 }
 
 int ESP8266::get_firmware_version()
@@ -252,8 +264,7 @@ bool ESP8266::open(const char *type, int id, const char* addr, int port, int loc
 {
     bool done;
 
-    //IDs only 0-4
-    if (id > 4) {
+    if (id >= SOCKET_COUNT) {
         return false;
     }
     _smutex.lock();
@@ -264,6 +275,7 @@ bool ESP8266::open(const char *type, int id, const char* addr, int port, int loc
         done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port)
                && _parser.recv("OK\n");
     }
+    _socket_open[id] = 1;
     _smutex.unlock();
 
     return done;
@@ -278,7 +290,7 @@ bool ESP8266::dns_lookup(const char* name, char* ip)
     return done;
 }
 
-bool ESP8266::send(int id, const void *data, uint32_t amount)
+nsapi_error_t ESP8266::send(int id, const void *data, uint32_t amount)
 {
     //May take a second try if device is busy
     for (unsigned i = 0; i < 2; i++) {
@@ -288,12 +300,12 @@ bool ESP8266::send(int id, const void *data, uint32_t amount)
             && _parser.write((char*)data, (int)amount) >= 0) {
             while (_parser.process_oob()); // multiple sends in a row require this
             _smutex.unlock();
-            return true;
+            return NSAPI_ERROR_OK;
         }
         _smutex.unlock();
     }
 
-    return false;
+    return NSAPI_ERROR_DEVICE_ERROR;
 }
 
 void ESP8266::_packet_handler()
@@ -309,6 +321,7 @@ void ESP8266::_packet_handler()
     struct packet *packet = (struct packet*)malloc(
             sizeof(struct packet) + amount);
     if (!packet) {
+        tr_error("Could not allocate memory for RX data");
         return;
     }
 
@@ -361,6 +374,11 @@ int32_t ESP8266::recv(int id, void *data, uint32_t amount)
             }
         }
     }
+    if(!_socket_open[id]) {
+        _smutex.unlock();
+        return 0;
+    }
+
     _smutex.unlock();
 
     return -1;
@@ -371,10 +389,11 @@ bool ESP8266::close(int id)
     //May take a second try if device is busy
     for (unsigned i = 0; i < 2; i++) {
         _smutex.lock();
-        if (_parser.send("AT+CIPCLOSE=%d", id)
-            && _parser.recv("OK\n")) {
-            _smutex.unlock();
-            return true;
+        if (_parser.send("AT+CIPCLOSE=%d", id) && _parser.recv("OK\n")) {
+            if (!_socket_open[id]) { // recv(processing OOBs) needs to be done first
+                _smutex.unlock();
+                return true;
+            }
         }
         _smutex.unlock();
     }
@@ -423,6 +442,31 @@ void ESP8266::_connect_error_handler()
         _fail = true;
         _parser.abort();
     }
+}
+
+void ESP8266::_oob_socket0_closed_handler()
+{
+    _socket_open[0] = 0;
+}
+
+void ESP8266::_oob_socket1_closed_handler()
+{
+    _socket_open[1] = 0;
+}
+
+void ESP8266::_oob_socket2_closed_handler()
+{
+    _socket_open[2] = 0;
+}
+
+void ESP8266::_oob_socket3_closed_handler()
+{
+    _socket_open[3] = 0;
+}
+
+void ESP8266::_oob_socket4_closed_handler()
+{
+    _socket_open[4] = 0;
 }
 
 int8_t ESP8266::get_default_wifi_mode()

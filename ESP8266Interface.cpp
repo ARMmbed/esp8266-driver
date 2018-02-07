@@ -398,11 +398,14 @@ int ESP8266Interface::socket_accept(void *server, void **socket, SocketAddress *
 
 int ESP8266Interface::socket_send(void *handle, const void *data, unsigned size)
 {
+    nsapi_error_t status;
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
     _esp.setTimeout(ESP8266_SEND_TIMEOUT);
  
-    if (!_esp.send(socket->id, data, size)) {
-        return NSAPI_ERROR_DEVICE_ERROR;
+    status = _esp.send(socket->id, data, size);
+
+    if (status != NSAPI_ERROR_OK) {
+        return status;
     }
  
     return size;
@@ -414,6 +417,9 @@ int ESP8266Interface::socket_recv(void *handle, void *data, unsigned size)
     _esp.setTimeout(ESP8266_RECV_TIMEOUT);
  
     int32_t recv = _esp.recv(socket->id, data, size);
+    if(recv == 0) {
+        socket->connected = false; // No more data, ESP has closed the socket
+    }
     if (recv < 0) {
         return NSAPI_ERROR_WOULD_BLOCK;
     }
