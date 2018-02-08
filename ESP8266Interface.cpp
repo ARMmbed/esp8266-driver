@@ -425,7 +425,7 @@ int ESP8266Interface::socket_sendto(void *handle, const SocketAddress &addr, con
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
 
-    if((strcmp(addr.get_ip_address(), "0.0.0.0") == 0) | !addr.get_port())  {
+    if((strcmp(addr.get_ip_address(), "0.0.0.0") == 0) || !addr.get_port())  {
         return NSAPI_ERROR_DNS_FAILURE;
     }
 
