@@ -15,7 +15,7 @@
  */
 
 #include "ESP8266.h"
-#include "mbed_trace.h"
+#include "mbed_debug.h"
 #include "nsapi_types.h"
 
 #include <cstring>
@@ -321,7 +321,7 @@ void ESP8266::_packet_handler()
     struct packet *packet = (struct packet*)malloc(
             sizeof(struct packet) + amount);
     if (!packet) {
-        tr_error("Could not allocate memory for RX data");
+        debug("Could not allocate memory for RX data");
         return;
     }
 
