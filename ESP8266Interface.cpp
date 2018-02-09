@@ -431,6 +431,10 @@ int ESP8266Interface::socket_sendto(void *handle, const SocketAddress &addr, con
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
 
+    if((strcmp(addr.get_ip_address(), "0.0.0.0") == 0) || !addr.get_port())  {
+        return NSAPI_ERROR_DNS_FAILURE;
+    }
+
     if (socket->connected && socket->addr != addr) {
         _esp.setTimeout(ESP8266_MISC_TIMEOUT);
         if (!_esp.close(socket->id)) {
