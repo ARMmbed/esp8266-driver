@@ -147,6 +147,22 @@ public:
      */
     using NetworkInterface::add_dns_server;
 
+    /*  Set ESP8266-specific socket options
+     *
+     *  The setsockopt allow an application to pass stack-specific hints
+     *  to the underlying stack. For unsupported options,
+     *  NSAPI_ERROR_UNSUPPORTED is returned and the socket is unmodified.
+     *
+     *  @param handle   Socket handle
+     *  @param level    Stack-specific protocol level
+     *  @param optname  Stack-specific option identifier
+     *  @param optval   Option value
+     *  @param optlen   Length of the option value
+     *  @return         0 on success, negative error code on failure
+     */
+    virtual nsapi_error_t setsockopt(nsapi_socket_t handle, int level,
+            int optname, const void *optval, unsigned optlen);
+
 protected:
     /** Open a socket
      *  @param handle       Handle in which to store new socket

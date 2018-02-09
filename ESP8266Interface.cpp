@@ -301,6 +301,7 @@ struct esp8266_socket {
     nsapi_protocol_t proto;
     bool connected;
     SocketAddress addr;
+    int keepalive; // TCP
 };
 
 int ESP8266Interface::socket_open(void **handle, nsapi_protocol_t proto)
@@ -328,6 +329,7 @@ int ESP8266Interface::socket_open(void **handle, nsapi_protocol_t proto)
     socket->id = id;
     socket->proto = proto;
     socket->connected = false;
+    socket->keepalive = 0;
     *handle = socket;
     return 0;
 }
@@ -380,11 +382,17 @@ int ESP8266Interface::socket_listen(void *handle, int backlog)
 int ESP8266Interface::socket_connect(void *handle, const SocketAddress &addr)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
+
     _esp.setTimeout(ESP8266_MISC_TIMEOUT);
 
-    const char *proto = (socket->proto == NSAPI_UDP) ? "UDP" : "TCP";
-    if (!_esp.open(proto, socket->id, addr.get_ip_address(), addr.get_port(), _local_ports[socket->id])) {
-        return NSAPI_ERROR_DEVICE_ERROR;
+    if (socket->proto == NSAPI_UDP) {
+        if (!_esp.open_udp(socket->id, addr.get_ip_address(), addr.get_port(), _local_ports[socket->id])) {
+            return NSAPI_ERROR_DEVICE_ERROR;
+        }
+    } else {
+        if (!_esp.open_tcp(socket->id, addr.get_ip_address(), addr.get_port(), socket->keepalive)) {
+            return NSAPI_ERROR_DEVICE_ERROR;
+        }
     }
 
     socket->connected = true;
@@ -471,6 +479,34 @@ void ESP8266Interface::socket_attach(void *handle, void (*callback)(void *), voi
     _cbs[socket->id].callback = callback;
     _cbs[socket->id].data = data;
 }
+
+nsapi_error_t ESP8266Interface::setsockopt(nsapi_socket_t handle, int level,
+        int optname, const void *optval, unsigned optlen)
+{
+    struct esp8266_socket *socket = (struct esp8266_socket *)handle;
+
+    if (level == NSAPI_SOCKET) {
+        switch (optname) {
+            case NSAPI_KEEPALIVE: {
+                if(socket->connected == true) {// ESP8266 limitation, keepalive needs to be given before connecting
+                    return NSAPI_ERROR_UNSUPPORTED;
+                }
+
+                if (optlen == sizeof(int)) {
+                    int secs = *(int *)optval;
+                    if (secs  >= 0 && secs <= 7200) {
+                        socket->keepalive = secs;
+                        return NSAPI_ERROR_OK;
+                    }
+                }
+                return NSAPI_ERROR_PARAMETER;
+            }
+        }
+    }
+
+    return NSAPI_ERROR_UNSUPPORTED;
+}
+
 
 void ESP8266Interface::event() {
     for (int i = 0; i < ESP8266_SOCKET_COUNT; i++) {
