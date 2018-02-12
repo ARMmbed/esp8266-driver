@@ -485,10 +485,14 @@ nsapi_error_t ESP8266Interface::setsockopt(nsapi_socket_t handle, int level,
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
 
-    if (level == NSAPI_SOCKET) {
+    if (!optlen || !socket) {
+        return NSAPI_ERROR_PARAMETER;
+    }
+
+    if (level == NSAPI_SOCKET && socket->proto == NSAPI_TCP) {
         switch (optname) {
             case NSAPI_KEEPALIVE: {
-                if(socket->connected == true) {// ESP8266 limitation, keepalive needs to be given before connecting
+                if(socket->connected) {// ESP8266 limitation, keepalive needs to be given before connecting
                     return NSAPI_ERROR_UNSUPPORTED;
                 }
 
@@ -500,6 +504,29 @@ nsapi_error_t ESP8266Interface::setsockopt(nsapi_socket_t handle, int level,
                     }
                 }
                 return NSAPI_ERROR_PARAMETER;
+            }
+        }
+    }
+
+    return NSAPI_ERROR_UNSUPPORTED;
+}
+
+nsapi_error_t ESP8266Interface::getsockopt(nsapi_socket_t handle, int level, int optname, void *optval, unsigned *optlen)
+{
+    struct esp8266_socket *socket = (struct esp8266_socket *)handle;
+
+    if (!optval || !optlen || !socket) {
+        return NSAPI_ERROR_PARAMETER;
+    }
+
+    if (level == NSAPI_SOCKET && socket->proto == NSAPI_TCP) {
+        switch (optname) {
+            case NSAPI_KEEPALIVE: {
+                if(*optlen > sizeof(int)) {
+                    *optlen = sizeof(int);
+                }
+                memcpy(optval, &(socket->keepalive), *optlen);
+                return NSAPI_ERROR_OK;
             }
         }
     }
