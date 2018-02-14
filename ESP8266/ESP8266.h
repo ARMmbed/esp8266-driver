@@ -134,9 +134,24 @@ public:
     * @param id id to give the new socket, valid 0-4
     * @param port port to open connection with
     * @param addr the IP address of the destination
+    * @param port the port on the destination
+    * @param local_port UDP socket's local port, zero means any
     * @return true only if socket opened successfully
     */
-    bool open(const char *type, int id, const char* addr, int port, int local_port=0);
+    bool open_udp(int id, const char* addr, int port, int local_port = 0);
+
+    /**
+    * Open a socketed connection
+    *
+    * @param type the type of socket to open "UDP" or "TCP"
+    * @param id id to give the new socket, valid 0-4
+    * @param port port to open connection with
+    * @param addr the IP address of the destination
+    * @param port the port on the destination
+    * @param tcp_keepalive TCP connection's keep alive time, zero means disabled
+    * @return true only if socket opened successfully
+    */
+    bool open_tcp(int id, const char* addr, int port, int keepalive = 0);
 
     /**
     * Sends data to an open socket

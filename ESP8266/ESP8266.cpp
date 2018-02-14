@@ -15,7 +15,7 @@
  */
 
 #include "ESP8266.h"
-#include "mbed_trace.h"
+#include "mbed_debug.h"
 #include "nsapi_types.h"
 
 #include <cstring>
@@ -260,22 +260,56 @@ int ESP8266::scan(WiFiAccessPoint *res, unsigned limit)
     return cnt;
 }
 
-bool ESP8266::open(const char *type, int id, const char* addr, int port, int local_port)
+bool ESP8266::open_udp(int id, const char* addr, int port, int local_port)
 {
-    bool done;
+    static const char *type = "UDP";
+    bool done = false;
 
-    if (id >= SOCKET_COUNT) {
+    if (id >= SOCKET_COUNT || _socket_open[id]) {
         return false;
     }
+
     _smutex.lock();
     if(local_port) {
         done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d,%d", id, type, addr, port, local_port)
-               && _parser.recv("OK\n");
+                && _parser.recv("OK\n");
     } else {
         done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port)
                && _parser.recv("OK\n");
     }
-    _socket_open[id] = 1;
+
+    if (done) {
+        _socket_open[id] = 1;
+    }
+
+    _smutex.unlock();
+
+    return done;
+}
+
+bool ESP8266::open_tcp(int id, const char* addr, int port, int keepalive)
+{
+    static const char *type = "UDP";
+    bool done = false;
+
+    if (id >= SOCKET_COUNT || _socket_open[id]) {
+        return false;
+    }
+
+    _smutex.lock();
+
+    if(keepalive) {
+        done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d,%d", id, type, addr, port, keepalive)
+                && _parser.recv("OK\n");
+    } else {
+        done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port)
+               && _parser.recv("OK\n");
+    }
+
+    if (done) {
+        _socket_open[id] = 1;
+    }
+
     _smutex.unlock();
 
     return done;
@@ -321,7 +355,7 @@ void ESP8266::_packet_handler()
     struct packet *packet = (struct packet*)malloc(
             sizeof(struct packet) + amount);
     if (!packet) {
-        tr_error("Could not allocate memory for RX data");
+        debug("Could not allocate memory for RX data");
         return;
     }
 
