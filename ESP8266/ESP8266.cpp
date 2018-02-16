@@ -289,7 +289,7 @@ bool ESP8266::open_udp(int id, const char* addr, int port, int local_port)
 
 bool ESP8266::open_tcp(int id, const char* addr, int port, int keepalive)
 {
-    static const char *type = "UDP";
+    static const char *type = "TCP";
     bool done = false;
 
     if (id >= SOCKET_COUNT || _socket_open[id]) {
