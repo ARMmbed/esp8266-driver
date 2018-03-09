@@ -164,14 +164,24 @@ public:
     nsapi_error_t send(int id, const void *data, uint32_t amount);
 
     /**
-    * Receives data from an open socket
+    * Receives datagram from an open UDP socket
     *
     * @param id id to receive from
     * @param data placeholder for returned information
     * @param amount number of bytes to be received
     * @return the number of bytes received
     */
-    int32_t recv(int id, void *data, uint32_t amount);
+    int32_t recv_udp(int id, void *data, uint32_t amount);
+
+    /**
+    * Receives stream data from an open TCP socket
+    *
+    * @param id id to receive from
+    * @param data placeholder for returned information
+    * @param amount number of bytes to be received
+    * @return the number of bytes received
+    */
+    int32_t recv_tcp(int id, void *data, uint32_t amount);
 
     /**
     * Closes a socket
