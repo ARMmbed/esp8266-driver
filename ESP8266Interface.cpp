@@ -424,12 +424,14 @@ int ESP8266Interface::socket_recv(void *handle, void *data, unsigned size)
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
     _esp.setTimeout(ESP8266_RECV_TIMEOUT);
  
-    int32_t recv = _esp.recv(socket->id, data, size);
-    if(recv == 0) {
-        socket->connected = false; // No more data, ESP has closed the socket
-    }
-    if (recv < 0) {
-        return NSAPI_ERROR_WOULD_BLOCK;
+    int32_t recv;
+    if (socket->proto == NSAPI_TCP) {
+        recv = _esp.recv_tcp(socket->id, data, size);
+        if (recv <= 0) {
+            socket->connected = false;
+        }
+    } else {
+        recv = _esp.recv_udp(socket->id, data, size);
     }
  
     return recv;

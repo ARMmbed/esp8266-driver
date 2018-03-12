@@ -373,7 +373,7 @@ void ESP8266::_packet_handler()
     _packets_end = &packet->next;
 }
 
-int32_t ESP8266::recv(int id, void *data, uint32_t amount)
+int32_t ESP8266::recv_tcp(int id, void *data, uint32_t amount)
 {
     _smutex.lock();
     // Poll for inbound packets
@@ -415,7 +415,39 @@ int32_t ESP8266::recv(int id, void *data, uint32_t amount)
 
     _smutex.unlock();
 
-    return -1;
+    return NSAPI_ERROR_WOULD_BLOCK;
+}
+
+int32_t ESP8266::recv_udp(int id, void *data, uint32_t amount)
+{
+    _smutex.lock();
+    // Poll for inbound packets
+    while (_parser.process_oob()) {
+    }
+
+    // check if any packets are ready for us
+    for (struct packet **p = &_packets; *p; p = &(*p)->next) {
+        if ((*p)->id == id) {
+            struct packet *q = *p;
+
+            // Return and remove packet (truncated if necessary)
+            uint32_t len = q->len < amount ? q->len : amount;
+            memcpy(data, q+1, len);
+
+            if (_packets_end == &(*p)->next) {
+                _packets_end = p;
+            }
+            *p = (*p)->next;
+            _smutex.unlock();
+
+            free(q);
+            return len;
+        }
+    }
+
+    _smutex.unlock();
+
+    return NSAPI_ERROR_WOULD_BLOCK;
 }
 
 bool ESP8266::close(int id)
