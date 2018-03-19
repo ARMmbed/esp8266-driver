@@ -244,10 +244,10 @@ bool ESP8266Interface::_get_firmware_ok()
     if (_esp.get_firmware_version() != ESP8266_VERSION) {
         debug("ESP8266: ERROR: Firmware incompatible with this driver.\
                \r\nUpdate to v%d - https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update\r\n",ESP8266_VERSION);
-        return NSAPI_ERROR_DEVICE_ERROR;
+        return false;
     }
 
-    return NSAPI_ERROR_OK;
+    return true;
 }
 
 bool ESP8266Interface::_disable_default_softap()
@@ -274,7 +274,7 @@ nsapi_error_t ESP8266Interface::_init(void)
         if (!_esp.reset()) {
             return NSAPI_ERROR_DEVICE_ERROR;
         }
-        if (_get_firmware_ok() != NSAPI_ERROR_OK) {
+        if (!_get_firmware_ok()) {
             return NSAPI_ERROR_DEVICE_ERROR;
         }
         if (_disable_default_softap() == false) {
