@@ -490,9 +490,15 @@ void ESP8266::attach(Callback<void()> func)
 bool ESP8266::recv_ap(nsapi_wifi_ap_t *ap)
 {
     int sec;
-    bool ret = _parser.recv("+CWLAP:(%d,\"%32[^\"]\",%hhd,\"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx\",%hhu", &sec, ap->ssid,
-                            &ap->rssi, &ap->bssid[0], &ap->bssid[1], &ap->bssid[2], &ap->bssid[3], &ap->bssid[4],
-                            &ap->bssid[5], &ap->channel);
+    int dummy;
+    bool ret = _parser.recv("+CWLAP:(%d,\"%32[^\"]\",%hhd,\"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx\",%hhu,%d,%d)\n",
+            &sec,
+            ap->ssid,
+            &ap->rssi,
+            &ap->bssid[0], &ap->bssid[1], &ap->bssid[2], &ap->bssid[3], &ap->bssid[4], &ap->bssid[5],
+            &ap->channel,
+            &dummy,
+            &dummy);
 
     ap->security = sec < 5 ? (nsapi_security_t)sec : NSAPI_SECURITY_UNKNOWN;
 
