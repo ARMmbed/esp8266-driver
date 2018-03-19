@@ -262,7 +262,8 @@ private:
     void _oob_socket2_closed_handler();
     void _oob_socket3_closed_handler();
     void _oob_socket4_closed_handler();
-
+    void _oob_send_done_handler();
+    void _oob_send_fail_handler();
 
     char _ip_buffer[16];
     char _gateway_buffer[16];
@@ -271,6 +272,7 @@ private:
 
     int _connect_error;
     bool _fail;
+    bool _send_in_progress;
     int _socket_open[SOCKET_COUNT];
 };
 

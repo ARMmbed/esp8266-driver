@@ -32,6 +32,7 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
       _packets_end(&_packets),
       _connect_error(0),
       _fail(false),
+      _send_in_progress(false),
       _socket_open()
 {
     _serial.set_baud( ESP8266_DEFAULT_BAUD_RATE );
@@ -48,6 +49,8 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
     _parser.oob("2,CLOSED", callback(this, &ESP8266::_oob_socket2_closed_handler));
     _parser.oob("3,CLOSED", callback(this, &ESP8266::_oob_socket3_closed_handler));
     _parser.oob("4,CLOSED", callback(this, &ESP8266::_oob_socket4_closed_handler));
+    _parser.oob("SEND OK", callback(this, &ESP8266::_oob_send_done_handler));
+    _parser.oob("SEND FAIL", callback(this, &ESP8266::_oob_send_fail_handler));
 }
 
 int ESP8266::get_firmware_version()
@@ -332,9 +335,14 @@ nsapi_error_t ESP8266::send(int id, const void *data, uint32_t amount)
         if (_parser.send("AT+CIPSEND=%d,%lu", id, amount)
             && _parser.recv(">")
             && _parser.write((char*)data, (int)amount) >= 0) {
-            while (_parser.process_oob()); // multiple sends in a row require this
+            _send_in_progress = true;
+            _fail = false;
+            // wait for "SEND OK/FAIL" to be received
+            // multiple sends in a row require this
+            while (_parser.process_oob() && _send_in_progress); 
+            nsapi_error_t result = (_fail) ? NSAPI_ERROR_DEVICE_ERROR : NSAPI_ERROR_OK;
             _smutex.unlock();
-            return NSAPI_ERROR_OK;
+            return result;
         }
         _smutex.unlock();
     }
@@ -376,35 +384,39 @@ void ESP8266::_packet_handler()
 int32_t ESP8266::recv_tcp(int id, void *data, uint32_t amount)
 {
     _smutex.lock();
+
     // Poll for inbound packets
-    while (_parser.process_oob()) {
-    }
+    // Terminate after first available packet
+    bool more = true;
+    while (more) {
+        more = _parser.process_oob();
 
-    // check if any packets are ready for us
-    for (struct packet **p = &_packets; *p; p = &(*p)->next) {
-        if ((*p)->id == id) {
-            struct packet *q = *p;
+        // check if any packets are ready for us
+        for (struct packet **p = &_packets; *p; p = &(*p)->next) {
+            if ((*p)->id == id) {
+                struct packet *q = *p;
 
-            if (q->len <= amount) { // Return and remove full packet
-                memcpy(data, q+1, q->len);
+                if (q->len <= amount) { // Return and remove full packet
+                    memcpy(data, q+1, q->len);
 
-                if (_packets_end == &(*p)->next) {
-                    _packets_end = p;
+                    if (_packets_end == &(*p)->next) {
+                        _packets_end = p;
+                    }
+                    *p = (*p)->next;
+                    _smutex.unlock();
+
+                    uint32_t len = q->len;
+                    free(q);
+                    return len;
+                } else { // return only partial packet
+                    memcpy(data, q+1, amount);
+
+                    q->len -= amount;
+                    memmove(q+1, (uint8_t*)(q+1) + amount, q->len);
+
+                    _smutex.unlock();
+                    return amount;
                 }
-                *p = (*p)->next;
-                _smutex.unlock();
-
-                uint32_t len = q->len;
-                free(q);
-                return len;
-            } else { // return only partial packet
-                memcpy(data, q+1, amount);
-
-                q->len -= amount;
-                memmove(q+1, (uint8_t*)(q+1) + amount, q->len);
-
-                _smutex.unlock();
-                return amount;
             }
         }
     }
@@ -539,6 +551,17 @@ void ESP8266::_oob_socket3_closed_handler()
 void ESP8266::_oob_socket4_closed_handler()
 {
     _socket_open[4] = 0;
+}
+
+void ESP8266::_oob_send_done_handler()
+{
+    _send_in_progress = false;
+}
+
+void ESP8266::_oob_send_fail_handler()
+{
+    _send_in_progress = false;
+    _fail = true;
 }
 
 int8_t ESP8266::get_default_wifi_mode()
