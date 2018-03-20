@@ -21,6 +21,20 @@
 #include "nsapi_types.h"
 #include "rtos.h"
 
+// Various timeouts for different ESP8266 operations
+#ifndef ESP8266_CONNECT_TIMEOUT
+#define ESP8266_CONNECT_TIMEOUT 15000
+#endif
+#ifndef ESP8266_SEND_TIMEOUT
+#define ESP8266_SEND_TIMEOUT    500
+#endif
+#ifndef ESP8266_RECV_TIMEOUT
+#define ESP8266_RECV_TIMEOUT    500
+#endif
+#ifndef ESP8266_MISC_TIMEOUT
+#define ESP8266_MISC_TIMEOUT    500
+#endif
+
 /** ESP8266Interface class.
     This is an interface to a ESP8266 radio.
  */
@@ -196,7 +210,7 @@ public:
     *
     * @param timeout_ms timeout of the connection
     */
-    void setTimeout(uint32_t timeout_ms);
+    void setTimeout(uint32_t timeout_ms=ESP8266_MISC_TIMEOUT);
 
     /**
     * Checks if data is available

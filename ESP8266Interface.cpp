@@ -20,19 +20,6 @@
 #include "mbed_debug.h"
 #include "nsapi_types.h"
 
-// Various timeouts for different ESP8266 operations
-#ifndef ESP8266_CONNECT_TIMEOUT
-#define ESP8266_CONNECT_TIMEOUT 15000
-#endif
-#ifndef ESP8266_SEND_TIMEOUT
-#define ESP8266_SEND_TIMEOUT    500
-#endif
-#ifndef ESP8266_RECV_TIMEOUT
-#define ESP8266_RECV_TIMEOUT    500
-#endif
-#ifndef ESP8266_MISC_TIMEOUT
-#define ESP8266_MISC_TIMEOUT    500
-#endif
 
 // Firmware version
 #define ESP8266_VERSION 2
@@ -51,6 +38,7 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug)
     ap_sec = NSAPI_SECURITY_UNKNOWN;
 
     _esp.attach(this, &ESP8266Interface::event);
+    _esp.setTimeout();
 }
 
 int ESP8266Interface::connect(const char *ssid, const char *pass, nsapi_security_t security,
@@ -97,11 +85,10 @@ int ESP8266Interface::connect()
     }
     _started = true;
 
-    _esp.setTimeout(ESP8266_MISC_TIMEOUT);
     if (!_esp.dhcp(true, 1)) {
         return NSAPI_ERROR_DHCP_FAILURE;
     }
-    _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
+
     int connect_error = _esp.connect(ap_ssid, ap_pass);
     if (connect_error) {
         return connect_error;
@@ -164,12 +151,7 @@ int ESP8266Interface::disconnect()
     _started = false;
     _initialized = false;
 
-    _esp.setTimeout(ESP8266_MISC_TIMEOUT);
-    if (!_esp.disconnect()) {
-        return NSAPI_ERROR_DEVICE_ERROR;
-    }
-
-    return NSAPI_ERROR_OK;
+    return _esp.disconnect() ? NSAPI_ERROR_OK : NSAPI_ERROR_DEVICE_ERROR;
 }
 
 const char *ESP8266Interface::get_ip_address()
@@ -178,7 +160,6 @@ const char *ESP8266Interface::get_ip_address()
         return NULL;
     }
 
-    _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
     const char *ip_buff = _esp.getIPAddress();
     if(!ip_buff || std::strcmp(ip_buff, "0.0.0.0") == 0) {
         return NULL;
@@ -189,35 +170,22 @@ const char *ESP8266Interface::get_ip_address()
 
 const char *ESP8266Interface::get_mac_address()
 {
-    _esp.setTimeout(ESP8266_MISC_TIMEOUT);
     return _esp.getMACAddress();
 }
 
 const char *ESP8266Interface::get_gateway()
 {
-    if(!_started) {
-        return NULL;
-    }
-    _esp.setTimeout(ESP8266_MISC_TIMEOUT);
-    return _esp.getGateway();
+    return _started ? _esp.getGateway() : NULL;
 }
 
 const char *ESP8266Interface::get_netmask()
 {
-    if(!_started) {
-        return NULL;
-    }
-    _esp.setTimeout(ESP8266_MISC_TIMEOUT);
-    return _esp.getNetmask();
+    return _started ? _esp.getNetmask() : NULL;
 }
 
 int8_t ESP8266Interface::get_rssi()
 {
-    if(!_started) {
-        return 0;
-    }
-    _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
-    return _esp.getRSSI();
+    return _started ? _esp.getRSSI() : 0;
 }
 
 int ESP8266Interface::scan(WiFiAccessPoint *res, unsigned count)
@@ -234,13 +202,11 @@ int ESP8266Interface::scan(WiFiAccessPoint *res, unsigned count)
         return status;
     }
 
-    _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
     return _esp.scan(res, count);
 }
 
 bool ESP8266Interface::_get_firmware_ok()
 {
-    _esp.setTimeout(ESP8266_MISC_TIMEOUT);
     if (_esp.get_firmware_version() != ESP8266_VERSION) {
         debug("ESP8266: ERROR: Firmware incompatible with this driver.\
                \r\nUpdate to v%d - https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update\r\n",ESP8266_VERSION);
@@ -254,7 +220,6 @@ bool ESP8266Interface::_disable_default_softap()
 {
     static int disabled = false;
 
-    _esp.setTimeout(ESP8266_MISC_TIMEOUT);
     if (disabled || _esp.get_default_wifi_mode() == ESP8266::WIFIMODE_STATION) {
         disabled = true;
         return true;
@@ -270,7 +235,6 @@ bool ESP8266Interface::_disable_default_softap()
 nsapi_error_t ESP8266Interface::_init(void)
 {
     if (!_initialized) {
-        _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
         if (!_esp.reset()) {
             return NSAPI_ERROR_DEVICE_ERROR;
         }
@@ -288,7 +252,6 @@ nsapi_error_t ESP8266Interface::_init(void)
 nsapi_error_t ESP8266Interface::_startup(const int8_t wifi_mode)
 {
     if (!_started) {
-        _esp.setTimeout(ESP8266_CONNECT_TIMEOUT);
         if (!_esp.startup(wifi_mode)) {
             return NSAPI_ERROR_DEVICE_ERROR;
         }
@@ -338,7 +301,6 @@ int ESP8266Interface::socket_close(void *handle)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
     int err = 0;
-    _esp.setTimeout(ESP8266_MISC_TIMEOUT);
  
     if (socket->connected && !_esp.close(socket->id)) {
         err = NSAPI_ERROR_DEVICE_ERROR;
@@ -383,8 +345,6 @@ int ESP8266Interface::socket_connect(void *handle, const SocketAddress &addr)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
 
-    _esp.setTimeout(ESP8266_MISC_TIMEOUT);
-
     if (socket->proto == NSAPI_UDP) {
         if (!_esp.open_udp(socket->id, addr.get_ip_address(), addr.get_port(), _local_ports[socket->id])) {
             return NSAPI_ERROR_DEVICE_ERROR;
@@ -408,21 +368,15 @@ int ESP8266Interface::socket_send(void *handle, const void *data, unsigned size)
 {
     nsapi_error_t status;
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
-    _esp.setTimeout(ESP8266_SEND_TIMEOUT);
  
     status = _esp.send(socket->id, data, size);
 
-    if (status != NSAPI_ERROR_OK) {
-        return status;
-    }
- 
-    return size;
+    return status != NSAPI_ERROR_OK ? status : size;
 }
 
 int ESP8266Interface::socket_recv(void *handle, void *data, unsigned size)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
-    _esp.setTimeout(ESP8266_RECV_TIMEOUT);
  
     int32_t recv;
     if (socket->proto == NSAPI_TCP) {
@@ -446,7 +400,6 @@ int ESP8266Interface::socket_sendto(void *handle, const SocketAddress &addr, con
     }
 
     if (socket->connected && socket->addr != addr) {
-        _esp.setTimeout(ESP8266_MISC_TIMEOUT);
         if (!_esp.close(socket->id)) {
             return NSAPI_ERROR_DEVICE_ERROR;
         }

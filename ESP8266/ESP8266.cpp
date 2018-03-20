@@ -20,10 +20,7 @@
 
 #include <cstring>
 
-
-#define TRACE_GROUP "Wifi"
 #define ESP8266_DEFAULT_BAUD_RATE   115200
-
 
 ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
     : _serial(tx, rx, ESP8266_DEFAULT_BAUD_RATE), 
@@ -76,10 +73,12 @@ bool ESP8266::startup(int mode)
     }
 
     _smutex.lock();
+    setTimeout(ESP8266_CONNECT_TIMEOUT);
     bool done = _parser.send("AT+CWMODE_CUR=%d", mode)
             && _parser.recv("OK\n")
             &&_parser.send("AT+CIPMUX=1")
             && _parser.recv("OK\n");
+    setTimeout(); //Restore default
     _smutex.unlock();
 
     return done;
@@ -88,6 +87,8 @@ bool ESP8266::startup(int mode)
 bool ESP8266::reset(void)
 {
     _smutex.lock();
+    setTimeout(ESP8266_CONNECT_TIMEOUT);
+
     for (int i = 0; i < 2; i++) {
         if (_parser.send("AT+RST")
             && _parser.recv("OK\n")
@@ -96,6 +97,7 @@ bool ESP8266::reset(void)
             return true;
         }
     }
+    setTimeout();
     _smutex.unlock();
 
     return false;
@@ -119,6 +121,8 @@ bool ESP8266::dhcp(bool enabled, int mode)
 nsapi_error_t ESP8266::connect(const char *ap, const char *passPhrase)
 {
     _smutex.lock();
+    setTimeout(ESP8266_CONNECT_TIMEOUT);
+
     _parser.send("AT+CWJAP_CUR=\"%s\",\"%s\"", ap, passPhrase);
     if (!_parser.recv("OK\n")) {
         if (_fail) {
@@ -138,6 +142,7 @@ nsapi_error_t ESP8266::connect(const char *ap, const char *passPhrase)
             return ret;
         }
     }
+    setTimeout();
     _smutex.unlock();
 
     return NSAPI_ERROR_OK;
@@ -155,12 +160,14 @@ bool ESP8266::disconnect(void)
 const char *ESP8266::getIPAddress(void)
 {
     _smutex.lock();
+    setTimeout(ESP8266_CONNECT_TIMEOUT);
     if (!(_parser.send("AT+CIFSR")
         && _parser.recv("+CIFSR:STAIP,\"%15[^\"]\"", _ip_buffer)
         && _parser.recv("OK\n"))) {
         _smutex.unlock();
         return 0;
     }
+    setTimeout();
     _smutex.unlock();
 
     return _ip_buffer;
@@ -214,21 +221,25 @@ int8_t ESP8266::getRSSI()
     char bssid[18];
 
     _smutex.lock();
-   if (!(_parser.send("AT+CWJAP_CUR?")
+    setTimeout(ESP8266_CONNECT_TIMEOUT);
+    if (!(_parser.send("AT+CWJAP_CUR?")
         && _parser.recv("+CWJAP_CUR:\"%*[^\"]\",\"%17[^\"]\"", bssid)
         && _parser.recv("OK\n"))) {
        _smutex.unlock();
         return 0;
     }
+    setTimeout();
    _smutex.unlock();
 
    _smutex.lock();
+   setTimeout(ESP8266_CONNECT_TIMEOUT);
     if (!(_parser.send("AT+CWLAP=\"\",\"%s\",", bssid)
         && _parser.recv("+CWLAP:(%*d,\"%*[^\"]\",%hhd,", &rssi)
         && _parser.recv("OK\n"))) {
         _smutex.unlock();
         return 0;
     }
+    setTimeout();
     _smutex.unlock();
 
     return rssi;
@@ -240,6 +251,8 @@ int ESP8266::scan(WiFiAccessPoint *res, unsigned limit)
     nsapi_wifi_ap_t ap;
 
     _smutex.lock();
+    setTimeout(ESP8266_CONNECT_TIMEOUT);
+
     if (!_parser.send("AT+CWLAP")) {
         _smutex.unlock();
         return NSAPI_ERROR_DEVICE_ERROR;
@@ -255,6 +268,7 @@ int ESP8266::scan(WiFiAccessPoint *res, unsigned limit)
             break;
         }
     }
+    setTimeout();
     _smutex.unlock();
 
     return cnt;
@@ -297,7 +311,6 @@ bool ESP8266::open_tcp(int id, const char* addr, int port, int keepalive)
     }
 
     _smutex.lock();
-
     if(keepalive) {
         done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d,%d", id, type, addr, port, keepalive)
                 && _parser.recv("OK\n");
@@ -329,6 +342,7 @@ nsapi_error_t ESP8266::send(int id, const void *data, uint32_t amount)
     //May take a second try if device is busy
     for (unsigned i = 0; i < 2; i++) {
         _smutex.lock();
+        setTimeout(ESP8266_SEND_TIMEOUT);
         if (_parser.send("AT+CIPSEND=%d,%lu", id, amount)
             && _parser.recv(">")
             && _parser.write((char*)data, (int)amount) >= 0) {
@@ -336,6 +350,7 @@ nsapi_error_t ESP8266::send(int id, const void *data, uint32_t amount)
             _smutex.unlock();
             return NSAPI_ERROR_OK;
         }
+        setTimeout();
         _smutex.unlock();
     }
 
@@ -376,9 +391,13 @@ void ESP8266::_packet_handler()
 int32_t ESP8266::recv_tcp(int id, void *data, uint32_t amount)
 {
     _smutex.lock();
+    setTimeout(ESP8266_RECV_TIMEOUT);
+
     // Poll for inbound packets
     while (_parser.process_oob()) {
     }
+
+    setTimeout();
 
     // check if any packets are ready for us
     for (struct packet **p = &_packets; *p; p = &(*p)->next) {
@@ -412,7 +431,6 @@ int32_t ESP8266::recv_tcp(int id, void *data, uint32_t amount)
         _smutex.unlock();
         return 0;
     }
-
     _smutex.unlock();
 
     return NSAPI_ERROR_WOULD_BLOCK;
@@ -421,9 +439,13 @@ int32_t ESP8266::recv_tcp(int id, void *data, uint32_t amount)
 int32_t ESP8266::recv_udp(int id, void *data, uint32_t amount)
 {
     _smutex.lock();
+    setTimeout(ESP8266_RECV_TIMEOUT);
+
     // Poll for inbound packets
     while (_parser.process_oob()) {
     }
+
+    setTimeout();
 
     // check if any packets are ready for us
     for (struct packet **p = &_packets; *p; p = &(*p)->next) {
@@ -444,7 +466,6 @@ int32_t ESP8266::recv_udp(int id, void *data, uint32_t amount)
             return len;
         }
     }
-
     _smutex.unlock();
 
     return NSAPI_ERROR_WOULD_BLOCK;
