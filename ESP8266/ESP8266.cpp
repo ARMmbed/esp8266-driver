@@ -360,10 +360,10 @@ nsapi_error_t ESP8266::send(int id, const void *data, uint32_t amount)
 void ESP8266::_packet_handler()
 {
     int id;
-    uint32_t amount;
+    int amount;
 
     // parse out the packet
-    if (!_parser.recv(",%d,%lu:", &id, &amount)) {
+    if (!_parser.recv(",%d,%d:", &id, &amount)) {
         return;
     }
 
@@ -378,7 +378,7 @@ void ESP8266::_packet_handler()
     packet->len = amount;
     packet->next = 0;
 
-    if (!(_parser.read((char*)(packet + 1), amount))) {
+    if (_parser.read((char*)(packet + 1), amount) < amount) {
         free(packet);
         return;
     }
