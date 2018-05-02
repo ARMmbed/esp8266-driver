@@ -370,7 +370,7 @@ void ESP8266::_packet_handler()
     struct packet *packet = (struct packet*)malloc(
             sizeof(struct packet) + amount);
     if (!packet) {
-        debug("Could not allocate memory for RX data");
+        debug("Could not allocate memory for RX data\n");
         return;
     }
 
