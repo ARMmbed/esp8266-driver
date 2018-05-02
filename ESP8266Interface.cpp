@@ -381,7 +381,7 @@ int ESP8266Interface::socket_recv(void *handle, void *data, unsigned size)
     int32_t recv;
     if (socket->proto == NSAPI_TCP) {
         recv = _esp.recv_tcp(socket->id, data, size);
-        if (recv <= 0) {
+        if (recv <= 0 && recv != NSAPI_ERROR_WOULD_BLOCK) {
             socket->connected = false;
         }
     } else {
