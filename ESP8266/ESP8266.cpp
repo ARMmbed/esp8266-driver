@@ -576,16 +576,15 @@ void ESP8266::_connection_status_handler()
 {
     char status[13];
     if (_parser.recv("%12[^\"]\n", status)) {
-        if (strcmp(status, "CONNECTED\n") == 0)
-            _connection_status = NSAPI_STATUS_LOCAL_UP;
-        else if (strcmp(status, "GOT IP\n") == 0)
+        if (strcmp(status, "GOT IP\n") == 0)
             _connection_status = NSAPI_STATUS_GLOBAL_UP;
-        else //DISCONNECTED or unknown
+        else if (strcmp(status, "DISCONNECT\n") == 0)
             _connection_status = NSAPI_STATUS_DISCONNECTED;
+        else
+            return;
 
         if(_connection_status_cb)
             _connection_status_cb(NSAPI_EVENT_CONNECTION_STATUS_CHANGE, _connection_status);
-
     }
 }
 

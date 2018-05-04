@@ -187,6 +187,10 @@ public:
      *  on the network. The parameters on the callback are the event type and
      *  event-type dependent reason parameter.
      *
+     *  In ESP8266 the callback will be called when processing OOB-messages via
+     *  AT-parser. Do NOT call any ESP8266Interface -functions or do extensive
+     *  processing in the callback.
+     *
      *  @param status_cb The callback for status changes
      */
     virtual void attach(mbed::Callback<void(nsapi_event_t, intptr_t)> status_cb);
