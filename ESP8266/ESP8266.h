@@ -223,22 +223,29 @@ public:
     bool writeable();
 
     /**
-    * Attach a function to call whenever network state has changed
+    * Attach a function to call whenever sigio happens in the serial
     *
     * @param func A pointer to a void function, or 0 to set as none
     */
-    void attach(Callback<void()> func);
+    void sigio(Callback<void()> func);
 
     /**
-    * Attach a function to call whenever network state has changed
+    * Attach a function to call whenever sigio happens in the serial
     *
     * @param obj pointer to the object to call the member function on
     * @param method pointer to the member function to call
     */
     template <typename T, typename M>
-    void attach(T *obj, M method) {
-        attach(Callback<void()>(obj, method));
+    void sigio(T *obj, M method) {
+        sigio(Callback<void()>(obj, method));
     }
+
+    /**
+    * Attach a function to call whenever network state has changed
+    *
+    * @param func A pointer to a void function, or 0 to set as none
+    */
+    void attach(mbed::Callback<void(nsapi_event_t, intptr_t)> status_cb);
 
     /**
      * Read default Wifi mode from flash
@@ -251,6 +258,12 @@ public:
      * Write default Wifi mode to flash
      */
     bool set_default_wifi_mode(const int8_t mode);
+
+    /** Get the connection status
+     *
+     *  @return         The connection status according to ConnectionStatusType
+     */
+    nsapi_connection_status_t get_connection_status() const;
 
     static const int8_t WIFIMODE_STATION = 1;
     static const int8_t WIFIMODE_SOFTAP = 2;
@@ -276,7 +289,7 @@ private:
     void _oob_socket2_closed_handler();
     void _oob_socket3_closed_handler();
     void _oob_socket4_closed_handler();
-
+    void _connection_status_handler();
 
     char _ip_buffer[16];
     char _gateway_buffer[16];
@@ -286,6 +299,8 @@ private:
     int _connect_error;
     bool _fail;
     int _socket_open[SOCKET_COUNT];
+    nsapi_connection_status_t _connection_status;
+    Callback<void(nsapi_event_t, intptr_t)> _connection_status_cb;
 };
 
 #endif

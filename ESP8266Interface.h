@@ -147,7 +147,7 @@ public:
      */
     using NetworkInterface::add_dns_server;
 
-    /*  Set socket options
+    /** Set socket options
      *
      *  The setsockopt allow an application to pass stack-specific hints
      *  to the underlying stack. For unsupported options,
@@ -163,7 +163,7 @@ public:
     virtual nsapi_error_t setsockopt(nsapi_socket_t handle, int level,
             int optname, const void *optval, unsigned optlen);
 
-    /*  Get socket options
+    /** Get socket options
      *
      *  getsockopt allows an application to retrieve stack-specific options
      *  from the underlying stack using stack-specific level and option names,
@@ -180,6 +180,26 @@ public:
      */
     virtual nsapi_error_t getsockopt(nsapi_socket_t handle, int level, int optname,
             void *optval, unsigned *optlen);
+
+    /** Register callback for status reporting
+     *
+     *  The specified status callback function will be called on status changes
+     *  on the network. The parameters on the callback are the event type and
+     *  event-type dependent reason parameter.
+     *
+     *  In ESP8266 the callback will be called when processing OOB-messages via
+     *  AT-parser. Do NOT call any ESP8266Interface -functions or do extensive
+     *  processing in the callback.
+     *
+     *  @param status_cb The callback for status changes
+     */
+    virtual void attach(mbed::Callback<void(nsapi_event_t, intptr_t)> status_cb);
+
+    /** Get the connection status
+     *
+     *  @return         The connection status according to ConnectionStatusType
+     */
+    virtual nsapi_connection_status_t get_connection_status() const;
 
 protected:
     /** Open a socket

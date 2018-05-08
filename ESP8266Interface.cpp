@@ -37,7 +37,7 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug)
     memset(_local_ports, 0, sizeof(_local_ports));
     ap_sec = NSAPI_SECURITY_UNKNOWN;
 
-    _esp.attach(this, &ESP8266Interface::event);
+    _esp.sigio(this, &ESP8266Interface::event);
     _esp.setTimeout();
 }
 
@@ -490,10 +490,21 @@ nsapi_error_t ESP8266Interface::getsockopt(nsapi_socket_t handle, int level, int
 }
 
 
-void ESP8266Interface::event() {
+void ESP8266Interface::event()
+{
     for (int i = 0; i < ESP8266_SOCKET_COUNT; i++) {
         if (_cbs[i].callback) {
             _cbs[i].callback(_cbs[i].data);
         }
     }
+}
+
+void ESP8266Interface::attach(mbed::Callback<void(nsapi_event_t, intptr_t)> status_cb)
+{
+    _esp.attach(status_cb);
+}
+
+nsapi_connection_status_t ESP8266Interface::get_connection_status() const
+{
+    return _esp.get_connection_status();
 }

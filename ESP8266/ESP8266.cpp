@@ -29,7 +29,8 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
       _packets_end(&_packets),
       _connect_error(0),
       _fail(false),
-      _socket_open()
+      _socket_open(),
+      _connection_status(NSAPI_STATUS_DISCONNECTED)
 {
     _serial.set_baud( ESP8266_DEFAULT_BAUD_RATE );
     _parser.debug_on(debug);
@@ -45,6 +46,7 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
     _parser.oob("2,CLOSED", callback(this, &ESP8266::_oob_socket2_closed_handler));
     _parser.oob("3,CLOSED", callback(this, &ESP8266::_oob_socket3_closed_handler));
     _parser.oob("4,CLOSED", callback(this, &ESP8266::_oob_socket4_closed_handler));
+    _parser.oob("WIFI ", callback(this, &ESP8266::_connection_status_handler));
 }
 
 int ESP8266::get_firmware_version()
@@ -122,6 +124,9 @@ nsapi_error_t ESP8266::connect(const char *ap, const char *passPhrase)
 {
     _smutex.lock();
     setTimeout(ESP8266_CONNECT_TIMEOUT);
+    _connection_status = NSAPI_STATUS_CONNECTING;
+    if(_connection_status_cb)
+        _connection_status_cb(NSAPI_EVENT_CONNECTION_STATUS_CHANGE, _connection_status);
 
     _parser.send("AT+CWJAP_CUR=\"%s\",\"%s\"", ap, passPhrase);
     if (!_parser.recv("OK\n")) {
@@ -503,9 +508,14 @@ bool ESP8266::writeable()
     return _serial.FileHandle::writable();
 }
 
-void ESP8266::attach(Callback<void()> func)
+void ESP8266::sigio(Callback<void()> func)
 {
     _serial.sigio(func);
+}
+
+void ESP8266::attach(mbed::Callback<void(nsapi_event_t, intptr_t)> status_cb)
+{
+    _connection_status_cb = status_cb;
 }
 
 bool ESP8266::recv_ap(nsapi_wifi_ap_t *ap)
@@ -562,6 +572,22 @@ void ESP8266::_oob_socket4_closed_handler()
     _socket_open[4] = 0;
 }
 
+void ESP8266::_connection_status_handler()
+{
+    char status[13];
+    if (_parser.recv("%12[^\"]\n", status)) {
+        if (strcmp(status, "GOT IP\n") == 0)
+            _connection_status = NSAPI_STATUS_GLOBAL_UP;
+        else if (strcmp(status, "DISCONNECT\n") == 0)
+            _connection_status = NSAPI_STATUS_DISCONNECTED;
+        else
+            return;
+
+        if(_connection_status_cb)
+            _connection_status_cb(NSAPI_EVENT_CONNECTION_STATUS_CHANGE, _connection_status);
+    }
+}
+
 int8_t ESP8266::get_default_wifi_mode()
 {
     int8_t mode;
@@ -586,4 +612,9 @@ bool ESP8266::set_default_wifi_mode(const int8_t mode)
     _smutex.unlock();
 
     return done;
+}
+
+nsapi_connection_status_t ESP8266::get_connection_status() const
+{
+    return _connection_status;
 }
