@@ -301,6 +301,10 @@ int ESP8266Interface::socket_close(void *handle)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
     int err = 0;
+
+    if (!socket) {
+        return NSAPI_ERROR_NO_SOCKET;
+    }
  
     if (socket->connected && !_esp.close(socket->id)) {
         err = NSAPI_ERROR_DEVICE_ERROR;
