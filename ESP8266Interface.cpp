@@ -321,6 +321,10 @@ int ESP8266Interface::socket_bind(void *handle, const SocketAddress &address)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
 
+    if (!socket) {
+        return NSAPI_ERROR_NO_SOCKET;
+    }
+
     if (socket->proto == NSAPI_UDP) {
         if(address.get_addr().version != NSAPI_UNSPEC) {
             return NSAPI_ERROR_UNSUPPORTED;
@@ -348,10 +352,16 @@ int ESP8266Interface::socket_listen(void *handle, int backlog)
 int ESP8266Interface::socket_connect(void *handle, const SocketAddress &addr)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
+    nsapi_error_t ret;
+
+    if (!socket) {
+        return NSAPI_ERROR_NO_SOCKET;
+    }
 
     if (socket->proto == NSAPI_UDP) {
-        if (!_esp.open_udp(socket->id, addr.get_ip_address(), addr.get_port(), _local_ports[socket->id])) {
-            return NSAPI_ERROR_DEVICE_ERROR;
+        ret = _esp.open_udp(socket->id, addr.get_ip_address(), addr.get_port(), _local_ports[socket->id]);
+        if (ret != NSAPI_ERROR_OK) {
+            return ret;
         }
     } else {
         if (!_esp.open_tcp(socket->id, addr.get_ip_address(), addr.get_port(), socket->keepalive)) {
@@ -372,6 +382,10 @@ int ESP8266Interface::socket_send(void *handle, const void *data, unsigned size)
 {
     nsapi_error_t status;
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
+
+    if (!socket) {
+        return NSAPI_ERROR_NO_SOCKET;
+    }
  
     status = _esp.send(socket->id, data, size);
 
@@ -382,6 +396,10 @@ int ESP8266Interface::socket_recv(void *handle, void *data, unsigned size)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
  
+    if (!socket) {
+        return NSAPI_ERROR_NO_SOCKET;
+    }
+
     int32_t recv;
     if (socket->proto == NSAPI_TCP) {
         recv = _esp.recv_tcp(socket->id, data, size);
@@ -398,6 +416,10 @@ int ESP8266Interface::socket_recv(void *handle, void *data, unsigned size)
 int ESP8266Interface::socket_sendto(void *handle, const SocketAddress &addr, const void *data, unsigned size)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
+
+    if (!socket) {
+        return NSAPI_ERROR_NO_SOCKET;
+    }
 
     if((strcmp(addr.get_ip_address(), "0.0.0.0") == 0) || !addr.get_port())  {
         return NSAPI_ERROR_DNS_FAILURE;
@@ -424,6 +446,11 @@ int ESP8266Interface::socket_sendto(void *handle, const SocketAddress &addr, con
 int ESP8266Interface::socket_recvfrom(void *handle, SocketAddress *addr, void *data, unsigned size)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
+
+    if (!socket) {
+        return NSAPI_ERROR_NO_SOCKET;
+    }
+
     int ret = socket_recv(socket, data, size);
     if (ret >= 0 && addr) {
         *addr = socket->addr;
@@ -434,7 +461,7 @@ int ESP8266Interface::socket_recvfrom(void *handle, SocketAddress *addr, void *d
 
 void ESP8266Interface::socket_attach(void *handle, void (*callback)(void *), void *data)
 {
-    struct esp8266_socket *socket = (struct esp8266_socket *)handle;    
+    struct esp8266_socket *socket = (struct esp8266_socket *)handle;
     _cbs[socket->id].callback = callback;
     _cbs[socket->id].data = data;
 }
@@ -444,8 +471,10 @@ nsapi_error_t ESP8266Interface::setsockopt(nsapi_socket_t handle, int level,
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
 
-    if (!optlen || !socket) {
+    if (!optlen) {
         return NSAPI_ERROR_PARAMETER;
+    } else if (!socket) {
+        return NSAPI_ERROR_NO_SOCKET;
     }
 
     if (level == NSAPI_SOCKET && socket->proto == NSAPI_TCP) {
@@ -474,8 +503,10 @@ nsapi_error_t ESP8266Interface::getsockopt(nsapi_socket_t handle, int level, int
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
 
-    if (!optval || !optlen || !socket) {
+    if (!optval || !optlen) {
         return NSAPI_ERROR_PARAMETER;
+    } else if (!socket) {
+        return NSAPI_ERROR_NO_SOCKET;
     }
 
     if (level == NSAPI_SOCKET && socket->proto == NSAPI_TCP) {

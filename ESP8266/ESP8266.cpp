@@ -29,6 +29,7 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
       _packets_end(&_packets),
       _connect_error(0),
       _fail(false),
+      _closed(false),
       _socket_open(),
       _connection_status(NSAPI_STATUS_DISCONNECTED)
 {
@@ -47,6 +48,7 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
     _parser.oob("3,CLOSED", callback(this, &ESP8266::_oob_socket3_closed_handler));
     _parser.oob("4,CLOSED", callback(this, &ESP8266::_oob_socket4_closed_handler));
     _parser.oob("WIFI ", callback(this, &ESP8266::_connection_status_handler));
+    _parser.oob("UNLINK", callback(this, &ESP8266::_oob_socket_close_error));
 }
 
 int ESP8266::get_firmware_version()
@@ -279,13 +281,15 @@ int ESP8266::scan(WiFiAccessPoint *res, unsigned limit)
     return cnt;
 }
 
-bool ESP8266::open_udp(int id, const char* addr, int port, int local_port)
+nsapi_error_t ESP8266::open_udp(int id, const char* addr, int port, int local_port)
 {
     static const char *type = "UDP";
     bool done = false;
 
-    if (id >= SOCKET_COUNT || _socket_open[id]) {
-        return false;
+    if (id >= SOCKET_COUNT) {
+        return NSAPI_ERROR_PARAMETER;
+    } else if (_socket_open[id]) {
+        return NSAPI_ERROR_IS_CONNECTED;
     }
 
     _smutex.lock();
@@ -303,7 +307,7 @@ bool ESP8266::open_udp(int id, const char* addr, int port, int local_port)
 
     _smutex.unlock();
 
-    return done;
+    return done ? NSAPI_ERROR_OK : NSAPI_ERROR_DEVICE_ERROR;
 }
 
 bool ESP8266::open_tcp(int id, const char* addr, int port, int keepalive)
@@ -375,7 +379,7 @@ void ESP8266::_packet_handler()
     struct packet *packet = (struct packet*)malloc(
             sizeof(struct packet) + amount);
     if (!packet) {
-        debug("Could not allocate memory for RX data\n");
+        debug("ESP8266: could not allocate memory for RX data\n");
         return;
     }
 
@@ -393,10 +397,10 @@ void ESP8266::_packet_handler()
     _packets_end = &packet->next;
 }
 
-int32_t ESP8266::recv_tcp(int id, void *data, uint32_t amount)
+int32_t ESP8266::recv_tcp(int id, void *data, uint32_t amount, uint32_t timeout)
 {
     _smutex.lock();
-    setTimeout(ESP8266_RECV_TIMEOUT);
+    setTimeout(timeout);
 
     // Poll for inbound packets
     while (_parser.process_oob()) {
@@ -441,10 +445,10 @@ int32_t ESP8266::recv_tcp(int id, void *data, uint32_t amount)
     return NSAPI_ERROR_WOULD_BLOCK;
 }
 
-int32_t ESP8266::recv_udp(int id, void *data, uint32_t amount)
+int32_t ESP8266::recv_udp(int id, void *data, uint32_t amount, uint32_t timeout)
 {
     _smutex.lock();
-    setTimeout(ESP8266_RECV_TIMEOUT);
+    setTimeout(timeout);
 
     // Poll for inbound packets
     while (_parser.process_oob()) {
@@ -481,8 +485,17 @@ bool ESP8266::close(int id)
     //May take a second try if device is busy
     for (unsigned i = 0; i < 2; i++) {
         _smutex.lock();
-        if (_parser.send("AT+CIPCLOSE=%d", id) && _parser.recv("OK\n")) {
-            if (!_socket_open[id]) { // recv(processing OOBs) needs to be done first
+        if (_parser.send("AT+CIPCLOSE=%d", id)) {
+            if (!_parser.recv("OK\n")) {
+                if (_closed) { // UNLINK ERROR
+                    _closed = false;
+                    _socket_open[id] = 0;
+                    _smutex.unlock();
+                    // ESP8266 has a habit that it might close a socket on its own.
+                    //debug("ESP8266: socket %d already closed when calling close\n", id);
+                    return true;
+                }
+            } else {
                 _smutex.unlock();
                 return true;
             }
@@ -543,6 +556,14 @@ void ESP8266::_connect_error_handler()
 
     if (_parser.recv("%d", &_connect_error) && _parser.recv("FAIL")) {
         _fail = true;
+        _parser.abort();
+    }
+}
+
+void ESP8266::_oob_socket_close_error()
+{
+    if (_parser.recv("ERROR\n")) {
+        _closed = true; // Not possible to pinpoint to a certain socket
         _parser.abort();
     }
 }
