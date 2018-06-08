@@ -152,7 +152,7 @@ public:
     * @param local_port UDP socket's local port, zero means any
     * @return true only if socket opened successfully
     */
-    bool open_udp(int id, const char* addr, int port, int local_port = 0);
+    nsapi_error_t open_udp(int id, const char* addr, int port, int local_port = 0);
 
     /**
     * Open a socketed connection
@@ -185,7 +185,7 @@ public:
     * @param amount number of bytes to be received
     * @return the number of bytes received
     */
-    int32_t recv_udp(int id, void *data, uint32_t amount);
+    int32_t recv_udp(int id, void *data, uint32_t amount, uint32_t timeout=ESP8266_RECV_TIMEOUT);
 
     /**
     * Receives stream data from an open TCP socket
@@ -195,7 +195,7 @@ public:
     * @param amount number of bytes to be received
     * @return the number of bytes received
     */
-    int32_t recv_tcp(int id, void *data, uint32_t amount);
+    int32_t recv_tcp(int id, void *data, uint32_t amount, uint32_t timeout=ESP8266_RECV_TIMEOUT);
 
     /**
     * Closes a socket
@@ -290,6 +290,7 @@ private:
     void _oob_socket3_closed_handler();
     void _oob_socket4_closed_handler();
     void _connection_status_handler();
+    void _oob_socket_close_error();
 
     char _ip_buffer[16];
     char _gateway_buffer[16];
@@ -298,6 +299,7 @@ private:
 
     int _connect_error;
     bool _fail;
+    bool _closed;
     int _socket_open[SOCKET_COUNT];
     nsapi_connection_status_t _connection_status;
     Callback<void(nsapi_event_t, intptr_t)> _connection_status_cb;
