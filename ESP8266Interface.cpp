@@ -24,6 +24,22 @@
 // Firmware version
 #define ESP8266_VERSION 2
 
+ESP8266Interface::ESP8266Interface()
+    : _esp(MBED_CONF_ESP8266_TX, MBED_CONF_ESP8266_RX, MBED_CONF_ESP8266_DEBUG),
+      _initialized(false),
+      _started(false)
+{
+    memset(_ids, 0, sizeof(_ids));
+    memset(_cbs, 0, sizeof(_cbs));
+    memset(ap_ssid, 0, sizeof(ap_ssid));
+    memset(ap_pass, 0, sizeof(ap_pass));
+    memset(_local_ports, 0, sizeof(_local_ports));
+    ap_sec = NSAPI_SECURITY_UNKNOWN;
+
+    _esp.sigio(this, &ESP8266Interface::event);
+    _esp.setTimeout();
+}
+
 // ESP8266Interface implementation
 ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug)
     : _esp(tx, rx, debug),
@@ -271,7 +287,7 @@ int ESP8266Interface::socket_open(void **handle, nsapi_protocol_t proto)
 {
     // Look for an unused socket
     int id = -1;
- 
+
     for (int i = 0; i < ESP8266_SOCKET_COUNT; i++) {
         if (!_ids[i]) {
             id = i;
@@ -279,16 +295,16 @@ int ESP8266Interface::socket_open(void **handle, nsapi_protocol_t proto)
             break;
         }
     }
- 
+
     if (id == -1) {
         return NSAPI_ERROR_NO_SOCKET;
     }
-    
+
     struct esp8266_socket *socket = new struct esp8266_socket;
     if (!socket) {
         return NSAPI_ERROR_NO_SOCKET;
     }
-    
+
     socket->id = id;
     socket->proto = proto;
     socket->connected = false;
@@ -305,7 +321,7 @@ int ESP8266Interface::socket_close(void *handle)
     if (!socket) {
         return NSAPI_ERROR_NO_SOCKET;
     }
- 
+
     if (socket->connected && !_esp.close(socket->id)) {
         err = NSAPI_ERROR_DEVICE_ERROR;
     }
@@ -372,7 +388,7 @@ int ESP8266Interface::socket_connect(void *handle, const SocketAddress &addr)
     socket->connected = true;
     return 0;
 }
-    
+
 int ESP8266Interface::socket_accept(void *server, void **socket, SocketAddress *addr)
 {
     return NSAPI_ERROR_UNSUPPORTED;
@@ -386,7 +402,7 @@ int ESP8266Interface::socket_send(void *handle, const void *data, unsigned size)
     if (!socket) {
         return NSAPI_ERROR_NO_SOCKET;
     }
- 
+
     status = _esp.send(socket->id, data, size);
 
     return status != NSAPI_ERROR_OK ? status : size;
@@ -395,7 +411,7 @@ int ESP8266Interface::socket_send(void *handle, const void *data, unsigned size)
 int ESP8266Interface::socket_recv(void *handle, void *data, unsigned size)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
- 
+
     if (!socket) {
         return NSAPI_ERROR_NO_SOCKET;
     }
@@ -409,7 +425,7 @@ int ESP8266Interface::socket_recv(void *handle, void *data, unsigned size)
     } else {
         recv = _esp.recv_udp(socket->id, data, size);
     }
- 
+
     return recv;
 }
 
@@ -439,7 +455,7 @@ int ESP8266Interface::socket_sendto(void *handle, const SocketAddress &addr, con
         }
         socket->addr = addr;
     }
-    
+
     return socket_send(socket, data, size);
 }
 
