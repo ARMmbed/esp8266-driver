@@ -21,6 +21,22 @@
 #include "nsapi_types.h"
 
 
+#ifndef MBED_CONF_ESP8266_TX
+#ifdef TARGET_FF_ARDUINO
+#define MBED_CONF_ESP8266_TX D1
+#else
+#define MBED_CONF_ESP8266_TX NC
+#endif
+#endif
+
+#ifndef MBED_CONF_ESP8266_RX
+#ifdef TARGET_FF_ARDUINO
+#define MBED_CONF_ESP8266_RX D0
+#else
+#define MBED_CONF_ESP8266_RX NC
+#endif
+#endif
+
 // Firmware version
 #define ESP8266_VERSION 2
 

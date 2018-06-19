@@ -3,11 +3,11 @@
     "config": {
         "tx": {
             "help": "TX pin for serial connection",
-            "value": "NC"
+            "value": null
         },
         "rx": {
             "help": "RX pin for serial connection",
-            "value": "NC"
+            "value": null
         },
         "debug": {
             "help": "Enable debug logs",
