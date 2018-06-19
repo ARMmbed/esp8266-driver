@@ -29,6 +29,12 @@
 class ESP8266Interface : public NetworkStack, public WiFiInterface
 {
 public:
+    /**
+     * @brief ESP8266Interface default constructor
+     *        Will use values defined in mbed_lib.json
+     */
+    ESP8266Interface();
+
     /** ESP8266Interface lifetime
      * @param tx        TX pin
      * @param rx        RX pin
