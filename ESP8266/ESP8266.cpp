@@ -21,6 +21,7 @@
 #include <cstring>
 
 #define ESP8266_DEFAULT_BAUD_RATE   115200
+#define ESP8266_ALL_SOCKET_IDS      -1
 
 ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
     : _serial(tx, rx, ESP8266_DEFAULT_BAUD_RATE), 
@@ -97,6 +98,7 @@ bool ESP8266::reset(void)
         if (_parser.send("AT+RST")
             && _parser.recv("OK\n")
             && _parser.recv("ready")) {
+            _clear_socket_packets(ESP8266_ALL_SOCKET_IDS);
             _smutex.unlock();
             return true;
         }
@@ -305,6 +307,8 @@ nsapi_error_t ESP8266::open_udp(int id, const char* addr, int port, int local_po
         _socket_open[id] = 1;
     }
 
+    _clear_socket_packets(id);
+
     _smutex.unlock();
 
     return done ? NSAPI_ERROR_OK : NSAPI_ERROR_DEVICE_ERROR;
@@ -331,6 +335,8 @@ bool ESP8266::open_tcp(int id, const char* addr, int port, int keepalive)
     if (done) {
         _socket_open[id] = 1;
     }
+
+    _clear_socket_packets(id);
 
     _smutex.unlock();
 
@@ -480,6 +486,27 @@ int32_t ESP8266::recv_udp(int id, void *data, uint32_t amount, uint32_t timeout)
     return NSAPI_ERROR_WOULD_BLOCK;
 }
 
+void ESP8266::_clear_socket_packets(int id)
+{
+    struct packet **p = &_packets;
+
+    while (*p) {
+        if ((*p)->id == id || id == ESP8266_ALL_SOCKET_IDS) {
+            struct packet *q = *p;
+
+            if (_packets_end == &(*p)->next) {
+                _packets_end = p; // Set last packet next field/_packets
+            }
+            *p = (*p)->next;
+
+            free(q);
+        } else {
+            // Point to last packet next field
+            p = &(*p)->next;
+        }
+    }
+}
+
 bool ESP8266::close(int id)
 {
     //May take a second try if device is busy
@@ -490,12 +517,14 @@ bool ESP8266::close(int id)
                 if (_closed) { // UNLINK ERROR
                     _closed = false;
                     _socket_open[id] = 0;
+                    _clear_socket_packets(id);
                     _smutex.unlock();
                     // ESP8266 has a habit that it might close a socket on its own.
                     //debug("ESP8266: socket %d already closed when calling close\n", id);
                     return true;
                 }
             } else {
+                _clear_socket_packets(id);
                 _smutex.unlock();
                 return true;
             }

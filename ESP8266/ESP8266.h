@@ -291,6 +291,7 @@ private:
     void _oob_socket4_closed_handler();
     void _connection_status_handler();
     void _oob_socket_close_error();
+    void _clear_socket_packets(int id);
 
     char _ip_buffer[16];
     char _gateway_buffer[16];
