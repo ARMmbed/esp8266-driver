@@ -41,7 +41,7 @@
 class ESP8266
 {
 public:
-    ESP8266(PinName tx, PinName rx, bool debug=false);
+    ESP8266(PinName tx, PinName rx, bool debug=false, PinName rts=NC, PinName cts=NC);
 
     /**
     * Check firmware version of ESP8266
@@ -265,6 +265,13 @@ public:
      */
     nsapi_connection_status_t get_connection_status() const;
 
+    /**
+     * Start board's and ESP8266's UART flow control
+     *
+     * @return true if started
+     */
+    bool start_uart_hw_flow_ctrl();
+
     static const int8_t WIFIMODE_STATION = 1;
     static const int8_t WIFIMODE_SOFTAP = 2;
     static const int8_t WIFIMODE_STATION_SOFTAP = 3;
@@ -272,13 +279,16 @@ public:
 
 private:
     UARTSerial _serial;
+    PinName _serial_rts;
+    PinName _serial_cts;
     ATCmdParser _parser;
     Mutex _smutex; // Protect serial port access
 
     struct packet {
         struct packet *next;
         int id;
-        uint32_t len;
+        uint32_t len; // Remaining length
+        uint32_t alloc_len; // Original length
         // data follows
     } *_packets, **_packets_end;
     void _packet_handler();
@@ -292,6 +302,7 @@ private:
     void _connection_status_handler();
     void _oob_socket_close_error();
     void _clear_socket_packets(int id);
+    void process_oob(uint32_t timeout, bool all);
 
     char _ip_buffer[16];
     char _gateway_buffer[16];
@@ -304,6 +315,7 @@ private:
     int _socket_open[SOCKET_COUNT];
     nsapi_connection_status_t _connection_status;
     Callback<void(nsapi_event_t, intptr_t)> _connection_status_cb;
+    size_t _heap_usage;
 };
 
 #endif

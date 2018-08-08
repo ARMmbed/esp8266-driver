@@ -15,24 +15,29 @@
  */
 
 #include "ESP8266.h"
-#include "mbed_debug.h"
+#include "Callback.h"
+#include "mbed_error.h"
 #include "nsapi_types.h"
+#include "PinNames.h"
 
 #include <cstring>
 
 #define ESP8266_DEFAULT_BAUD_RATE   115200
 #define ESP8266_ALL_SOCKET_IDS      -1
 
-ESP8266::ESP8266(PinName tx, PinName rx, bool debug)
-    : _serial(tx, rx, ESP8266_DEFAULT_BAUD_RATE), 
-      _parser(&_serial), 
-      _packets(0), 
+ESP8266::ESP8266(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
+    : _serial(tx, rx, ESP8266_DEFAULT_BAUD_RATE),
+      _serial_rts(rts),
+      _serial_cts(cts),
+      _parser(&_serial),
+      _packets(0),
       _packets_end(&_packets),
       _connect_error(0),
       _fail(false),
       _closed(false),
       _socket_open(),
-      _connection_status(NSAPI_STATUS_DISCONNECTED)
+      _connection_status(NSAPI_STATUS_DISCONNECTED),
+      _heap_usage(0)
 {
     _serial.set_baud( ESP8266_DEFAULT_BAUD_RATE );
     _parser.debug_on(debug);
@@ -68,6 +73,34 @@ int ESP8266::get_firmware_version()
         // Older firmware versions do not prefix the version with "SDK version: "
         return -1;
     }
+}
+
+bool ESP8266::start_uart_hw_flow_ctrl(void)
+{
+    bool done = true;
+
+    if (_serial_rts != NC && _serial_cts != NC) {
+        // Start board's flow control
+        _serial.set_flow_control(SerialBase::RTSCTS, _serial_rts, _serial_cts);
+
+        // Start ESP8266's flow control
+        done = _parser.send("AT+UART_CUR=%u,8,1,0,3", ESP8266_DEFAULT_BAUD_RATE)
+            && _parser.recv("OK\n");
+
+    } else if (_serial_rts != NC) {
+        _serial.set_flow_control(SerialBase::RTS, _serial_rts, NC);
+
+        done = _parser.send("AT+UART_CUR=%u,8,1,0,2", ESP8266_DEFAULT_BAUD_RATE)
+            && _parser.recv("OK\n");
+
+    } else if (_serial_cts != NC) {
+        done = _parser.send("AT+UART_CUR=%u,8,1,0,1", ESP8266_DEFAULT_BAUD_RATE)
+            && _parser.recv("OK\n");
+
+        _serial.set_flow_control(SerialBase::CTS, NC, _serial_cts);
+    }
+
+    return done;
 }
 
 bool ESP8266::startup(int mode)
@@ -361,7 +394,10 @@ nsapi_error_t ESP8266::send(int id, const void *data, uint32_t amount)
         if (_parser.send("AT+CIPSEND=%d,%lu", id, amount)
             && _parser.recv(">")
             && _parser.write((char*)data, (int)amount) >= 0) {
-            while (_parser.process_oob()); // multiple sends in a row require this
+            // No flow control, data overrun is possible
+            if (_serial_rts == NC) {
+                while (_parser.process_oob()); // Drain USART receive register
+            }
             _smutex.unlock();
             return NSAPI_ERROR_OK;
         }
@@ -376,25 +412,37 @@ void ESP8266::_packet_handler()
 {
     int id;
     int amount;
+    int pdu_len;
 
     // parse out the packet
     if (!_parser.recv(",%d,%d:", &id, &amount)) {
         return;
     }
 
-    struct packet *packet = (struct packet*)malloc(
-            sizeof(struct packet) + amount);
-    if (!packet) {
-        debug("ESP8266: could not allocate memory for RX data\n");
+    pdu_len = sizeof(struct packet) + amount;
+
+    if ((_heap_usage + pdu_len) > MBED_CONF_ESP8266_SOCKET_BUFSIZE) {
+        MBED_WARNING(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_ENOBUFS), \
+                "ESP8266::_packet_handler(): \"esp8266.socket-bufsize\"-limit exceeded, packet dropped");
         return;
     }
 
+    struct packet *packet = (struct packet*)malloc(pdu_len);
+    if (!packet) {
+        MBED_WARNING(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_ENOMEM), \
+                "ESP8266::_packet_handler(): Could not allocate memory for RX data");
+        return;
+    }
+    _heap_usage += pdu_len;
+
     packet->id = id;
     packet->len = amount;
+    packet->alloc_len = amount;
     packet->next = 0;
 
     if (_parser.read((char*)(packet + 1), amount) < amount) {
         free(packet);
+        _heap_usage -= pdu_len;
         return;
     }
 
@@ -403,16 +451,22 @@ void ESP8266::_packet_handler()
     _packets_end = &packet->next;
 }
 
+void ESP8266::process_oob(uint32_t timeout, bool all) {
+    setTimeout(timeout);
+    // Poll for inbound packets
+    while (_parser.process_oob() && all) {
+    }
+    setTimeout();
+}
+
 int32_t ESP8266::recv_tcp(int id, void *data, uint32_t amount, uint32_t timeout)
 {
     _smutex.lock();
-    setTimeout(timeout);
 
-    // Poll for inbound packets
-    while (_parser.process_oob()) {
+    // No flow control, drain the USART receive register ASAP to avoid data overrun
+    if (_serial_rts == NC) {
+        process_oob(timeout, true);
     }
-
-    setTimeout();
 
     // check if any packets are ready for us
     for (struct packet **p = &_packets; *p; p = &(*p)->next) {
@@ -426,10 +480,13 @@ int32_t ESP8266::recv_tcp(int id, void *data, uint32_t amount, uint32_t timeout)
                     _packets_end = p;
                 }
                 *p = (*p)->next;
+
                 _smutex.unlock();
 
+                uint32_t pdu_len = sizeof(struct packet) + q->alloc_len;
                 uint32_t len = q->len;
                 free(q);
+                _heap_usage -= pdu_len;
                 return len;
             } else { // return only partial packet
                 memcpy(data, q+1, amount);
@@ -445,6 +502,11 @@ int32_t ESP8266::recv_tcp(int id, void *data, uint32_t amount, uint32_t timeout)
     if(!_socket_open[id]) {
         _smutex.unlock();
         return 0;
+    }
+
+    // Flow control, read from USART receive register only when no more data is buffered, and as little as possible
+    if (_serial_rts != NC) {
+        process_oob(timeout, false);
     }
     _smutex.unlock();
 
@@ -477,7 +539,9 @@ int32_t ESP8266::recv_udp(int id, void *data, uint32_t amount, uint32_t timeout)
             *p = (*p)->next;
             _smutex.unlock();
 
+            uint32_t pdu_len = sizeof(struct packet) + q->alloc_len;
             free(q);
+            _heap_usage -= pdu_len;
             return len;
         }
     }
@@ -493,13 +557,14 @@ void ESP8266::_clear_socket_packets(int id)
     while (*p) {
         if ((*p)->id == id || id == ESP8266_ALL_SOCKET_IDS) {
             struct packet *q = *p;
+            int pdu_len = sizeof(struct packet) + q->alloc_len;
 
             if (_packets_end == &(*p)->next) {
                 _packets_end = p; // Set last packet next field/_packets
             }
             *p = (*p)->next;
-
             free(q);
+            _heap_usage -= pdu_len;
         } else {
             // Point to last packet next field
             p = &(*p)->next;

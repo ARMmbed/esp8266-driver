@@ -40,7 +40,7 @@ public:
      * @param rx        RX pin
      * @param debug     Enable debugging
      */
-    ESP8266Interface(PinName tx, PinName rx, bool debug = false);
+    ESP8266Interface(PinName tx, PinName rx, bool debug=false, PinName rts=NC, PinName cts=NC);
 
     /** Start the interface
      *

@@ -3,11 +3,19 @@
     "config": {
         "tx": {
             "help": "TX pin for serial connection",
-            "value": null
+            "value": "D1"
         },
         "rx": {
             "help": "RX pin for serial connection",
-            "value": null
+            "value": "D0"
+        },
+        "rts": {
+            "help": "RTS pin for serial connection",
+            "value": "NC"
+        },
+        "cts": {
+            "help": "CTS pin for serial connection",
+            "value": "NC"
         },
         "debug": {
             "help": "Enable debug logs",
@@ -16,6 +24,10 @@
         "provide-default": {
             "help": "Provide default WifiInterface. [true/false]",
             "value": false
+        },
+        "socket-bufsize": {
+            "help": "Size of the socket data buffer",
+            "value": 102400
         }
     },
     "target_overrides": {
@@ -30,6 +42,10 @@
         "NUCLEO_F411RE": {
             "tx": "D8",
             "rx": "D2"
+        },
+        "NUCLEO_F429ZI": {
+            "rts": "NC",
+            "cts": "NC"
         }
     }
 }
