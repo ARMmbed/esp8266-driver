@@ -12,6 +12,10 @@
         "debug": {
             "help": "Enable debug logs",
             "value": false
+        },
+        "provide-default": {
+            "help": "Provide default WifiInterface. [true/false]",
+            "value": false
         }
     },
     "target_overrides": {
