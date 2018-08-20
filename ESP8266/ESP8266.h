@@ -272,6 +272,13 @@ public:
      */
     bool start_uart_hw_flow_ctrl();
 
+    /**
+     * Stop board's and ESP8266's UART flow control
+     *
+     * @return true if started
+     */
+    bool stop_uart_hw_flow_ctrl();
+
     static const int8_t WIFIMODE_STATION = 1;
     static const int8_t WIFIMODE_SOFTAP = 2;
     static const int8_t WIFIMODE_STATION_SOFTAP = 3;

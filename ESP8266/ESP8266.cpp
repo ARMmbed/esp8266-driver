@@ -75,6 +75,18 @@ int ESP8266::get_firmware_version()
     }
 }
 
+bool ESP8266::stop_uart_hw_flow_ctrl(void)
+{
+    // Stop board's flow control
+    _serial.set_flow_control(SerialBase::Disabled, _serial_rts, _serial_cts);
+
+    // Stop ESP8266's flow control
+    bool done = _parser.send("AT+UART_CUR=%u,8,1,0,0", ESP8266_DEFAULT_BAUD_RATE)
+        && _parser.recv("OK\n");
+
+    return done;
+}
+
 bool ESP8266::start_uart_hw_flow_ctrl(void)
 {
     bool done = true;
