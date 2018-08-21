@@ -26,8 +26,8 @@
             "value": false
         },
         "socket-bufsize": {
-            "help": "Size of the socket data buffer",
-            "value": 102400
+            "help": "Max socket data heap usage",
+            "value": 8192
         }
     },
     "target_overrides": {
