@@ -41,7 +41,7 @@
 #define ESP8266_VERSION 2
 
 ESP8266Interface::ESP8266Interface()
-    : _esp(MBED_CONF_ESP8266_TX, MBED_CONF_ESP8266_RX, MBED_CONF_ESP8266_DEBUG),
+    : _esp(MBED_CONF_ESP8266_TX, MBED_CONF_ESP8266_RX, MBED_CONF_ESP8266_DEBUG, MBED_CONF_ESP8266_RTS, MBED_CONF_ESP8266_CTS),
       _initialized(false),
       _started(false)
 {
@@ -57,8 +57,8 @@ ESP8266Interface::ESP8266Interface()
 }
 
 // ESP8266Interface implementation
-ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug)
-    : _esp(tx, rx, debug),
+ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
+    : _esp(tx, rx, debug, rts, cts),
       _initialized(false),
       _started(false)
 {
@@ -267,7 +267,13 @@ bool ESP8266Interface::_disable_default_softap()
 nsapi_error_t ESP8266Interface::_init(void)
 {
     if (!_initialized) {
+        if (!_esp.stop_uart_hw_flow_ctrl()) {
+            return NSAPI_ERROR_DEVICE_ERROR;
+        }
         if (!_esp.reset()) {
+            return NSAPI_ERROR_DEVICE_ERROR;
+        }
+        if (!_esp.start_uart_hw_flow_ctrl()) {
             return NSAPI_ERROR_DEVICE_ERROR;
         }
         if (!_get_firmware_ok()) {
