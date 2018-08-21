@@ -10,7 +10,7 @@ ESP8266 modules come in different shapes and formats, but the most important fac
 
 - The ESP8266 WiFi module does not allow the TCP client to bind on a specific port.
 - Setting up a UDP server is not possible.
-- The serial port does not have hardware flow control enabled. The AT command set does not either have a way to limit the download rate. Therefore, downloading anything larger than the serial port input buffer is unreliable. An application should be able to read fast enough to stay ahead of the network. This affects mostly the TCP protocol where data would be lost with no notification. On UDP, this would lead to only packet losses which the higher layer protocol should recover from.
+- The serial port does not have hardware flow control enabled by default. The AT command set does not either have a way to limit the download rate. Therefore, downloading anything larger than the serial port input buffer is unreliable. An application should be able to read fast enough to stay ahead of the network. This affects mostly the TCP protocol where data would be lost with no notification. On UDP, this would lead to only packet losses which the higher layer protocol should recover from.
 
 ## UART HW flow control
 
