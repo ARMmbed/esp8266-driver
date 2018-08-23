@@ -57,6 +57,16 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
     _parser.oob("UNLINK", callback(this, &ESP8266::_oob_socket_close_error));
 }
 
+bool ESP8266::at_available()
+{
+    _smutex.lock();
+    bool ready = _parser.send("AT")
+           && _parser.recv("OK\n");
+    _smutex.unlock();
+
+    return ready;
+}
+
 int ESP8266::get_firmware_version()
 {
     int version;

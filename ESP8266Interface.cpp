@@ -239,9 +239,9 @@ int ESP8266Interface::scan(WiFiAccessPoint *res, unsigned count)
 
 bool ESP8266Interface::_get_firmware_ok()
 {
-    if (_esp.get_firmware_version() != ESP8266_VERSION) {
+    if (_esp.get_firmware_version() < ESP8266_VERSION) {
         debug("ESP8266: ERROR: Firmware incompatible with this driver.\
-               \r\nUpdate to v%d - https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update\r\n",ESP8266_VERSION);
+               \r\nUpdate at least to v%d - https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update\r\n",ESP8266_VERSION);
         return false;
     }
 
@@ -267,6 +267,9 @@ bool ESP8266Interface::_disable_default_softap()
 nsapi_error_t ESP8266Interface::_init(void)
 {
     if (!_initialized) {
+        if (!_esp.at_available()) {
+            return NSAPI_ERROR_DEVICE_ERROR;
+        }
         if (!_esp.stop_uart_hw_flow_ctrl()) {
             return NSAPI_ERROR_DEVICE_ERROR;
         }

@@ -44,6 +44,13 @@ public:
     ESP8266(PinName tx, PinName rx, bool debug=false, PinName rts=NC, PinName cts=NC);
 
     /**
+    * Check AT command interface of ESP8266
+    *
+    * @return true if ready to respond on AT commands
+    */
+    bool at_available(void);
+
+    /**
     * Check firmware version of ESP8266
     *
     * @return integer firmware version or -1 if firmware query command gives outdated response
