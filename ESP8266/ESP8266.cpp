@@ -112,12 +112,16 @@ struct ESP8266::fw_at_version ESP8266::at_version()
 
 bool ESP8266::stop_uart_hw_flow_ctrl(void)
 {
-    // Stop board's flow control
-    _serial.set_flow_control(SerialBase::Disabled, _serial_rts, _serial_cts);
+    bool done = true;
 
-    // Stop ESP8266's flow control
-    bool done = _parser.send("AT+UART_CUR=%u,8,1,0,0", ESP8266_DEFAULT_BAUD_RATE)
-        && _parser.recv("OK\n");
+    if (_serial_rts != NC || _serial_cts != NC) {
+        // Stop board's flow control
+        _serial.set_flow_control(SerialBase::Disabled, _serial_rts, _serial_cts);
+
+        // Stop ESP8266's flow control
+        done = _parser.send("AT+UART_CUR=%u,8,1,0,0", ESP8266_DEFAULT_BAUD_RATE)
+            && _parser.recv("OK\n");
+    }
 
     return done;
 }
@@ -137,10 +141,12 @@ bool ESP8266::start_uart_hw_flow_ctrl(void)
     } else if (_serial_rts != NC) {
         _serial.set_flow_control(SerialBase::RTS, _serial_rts, NC);
 
+        // Enable ESP8266's CTS pin
         done = _parser.send("AT+UART_CUR=%u,8,1,0,2", ESP8266_DEFAULT_BAUD_RATE)
             && _parser.recv("OK\n");
 
     } else if (_serial_cts != NC) {
+        // Enable ESP8266's RTS pin
         done = _parser.send("AT+UART_CUR=%u,8,1,0,1", ESP8266_DEFAULT_BAUD_RATE)
             && _parser.recv("OK\n");
 
