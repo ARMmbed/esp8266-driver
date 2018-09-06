@@ -44,6 +44,34 @@ public:
     ESP8266(PinName tx, PinName rx, bool debug=false, PinName rts=NC, PinName cts=NC);
 
     /**
+    * ESP8266 firmware SDK version
+    *
+    * @param major Major version number
+    * @param minor Minor version number
+    * @param patch Patch version number
+    */
+    struct fw_sdk_version {
+        int major;
+        int minor;
+        int patch;
+        fw_sdk_version (int major, int minor, int patch) : major(major), minor(minor), patch(patch) {}
+    };
+
+    /**
+    * ESP8266 firmware AT version
+    *
+    * @param major Major version number
+    * @param minor Minor version number
+    * @param patch Patch version number
+    */
+    struct fw_at_version {
+        int major;
+        int minor;
+        int patch;
+        fw_at_version (int major, int minor, int patch) : major(major), minor(minor), patch(patch) {}
+    };
+
+    /**
     * Check AT command interface of ESP8266
     *
     * @return true if ready to respond on AT commands
@@ -51,12 +79,19 @@ public:
     bool at_available(void);
 
     /**
-    * Check firmware version of ESP8266
+    * Check sdk version from which firmware is created
     *
-    * @return integer firmware version or -1 if firmware query command gives outdated response
+    * @return fw_sdk_version which tells major, minor and patch version
     */
-    int get_firmware_version(void);
-    
+    struct fw_sdk_version sdk_version(void);
+
+    /**
+    * Check AT instruction set version from which firmware is created
+    *
+    * @return fw_at_version which tells major, minor and patch version
+    */
+    struct fw_at_version at_version(void);
+
     /**
     * Startup the ESP8266
     *
@@ -305,6 +340,9 @@ private:
         uint32_t alloc_len; // Original length
         // data follows
     } *_packets, **_packets_end;
+
+    struct fw_sdk_version _sdk_v;
+    struct fw_at_version _at_v;
     void _packet_handler();
     void _connect_error_handler();
     bool recv_ap(nsapi_wifi_ap_t *ap);

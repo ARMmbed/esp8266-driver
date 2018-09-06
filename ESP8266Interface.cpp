@@ -38,7 +38,8 @@
 #endif
 
 // Firmware version
-#define ESP8266_VERSION 2
+#define ESP8266_SDK_VERSION_MAJOR 2
+#define ESP8266_AT_VERSION_MAJOR 1
 
 ESP8266Interface::ESP8266Interface()
     : _esp(MBED_CONF_ESP8266_TX, MBED_CONF_ESP8266_RX, MBED_CONF_ESP8266_DEBUG, MBED_CONF_ESP8266_RTS, MBED_CONF_ESP8266_CTS),
@@ -239,9 +240,16 @@ int ESP8266Interface::scan(WiFiAccessPoint *res, unsigned count)
 
 bool ESP8266Interface::_get_firmware_ok()
 {
-    if (_esp.get_firmware_version() < ESP8266_VERSION) {
-        debug("ESP8266: ERROR: Firmware incompatible with this driver.\
-               \r\nUpdate at least to v%d - https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update\r\n",ESP8266_VERSION);
+    ESP8266::fw_at_version at_v = _esp.at_version();
+    if (at_v.major < ESP8266_AT_VERSION_MAJOR) {
+        debug("ESP8266: ERROR: AT Firmware v%d incompatible with this driver.", at_v.major);
+        debug("Update at least to v%d - https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update\n", ESP8266_AT_VERSION_MAJOR);
+        return false;
+    }
+    ESP8266::fw_sdk_version sdk_v = _esp.sdk_version();
+    if (sdk_v.major < ESP8266_SDK_VERSION_MAJOR) {
+        debug("ESP8266: ERROR: Firmware v%d incompatible with this driver.", sdk_v.major);
+        debug("Update at least to v%d - https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update\n", ESP8266_SDK_VERSION_MAJOR);
         return false;
     }
 

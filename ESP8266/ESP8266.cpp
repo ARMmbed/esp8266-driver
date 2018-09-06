@@ -32,6 +32,8 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
       _parser(&_serial),
       _packets(0),
       _packets_end(&_packets),
+      _sdk_v(-1,-1,-1),
+      _at_v(-1,-1,-1),
       _connect_error(0),
       _fail(false),
       _closed(false),
@@ -67,22 +69,45 @@ bool ESP8266::at_available()
     return ready;
 }
 
-int ESP8266::get_firmware_version()
+struct ESP8266::fw_sdk_version ESP8266::sdk_version()
 {
-    int version;
+    int major;
+    int minor;
+    int patch;
 
     _smutex.lock();
-    bool done = _parser.send("AT+GMR")
-           && _parser.recv("SDK version:%d", &version)
-           && _parser.recv("OK\n");
+    bool done = _parser.send("AT+GMR");
+    done &= _parser.recv("SDK version:%d.%d.%d", &major, &minor, &patch);
+    done &= _parser.recv("OK\n");
     _smutex.unlock();
 
     if(done) {
-        return version;
-    } else { 
-        // Older firmware versions do not prefix the version with "SDK version: "
-        return -1;
+        _sdk_v.major = major;
+        _sdk_v.minor = minor;
+        _sdk_v.patch = patch;
     }
+    return _sdk_v;
+}
+
+struct ESP8266::fw_at_version ESP8266::at_version()
+{
+    int major;
+    int minor;
+    int patch;
+    int nused;
+
+    _smutex.lock();
+    bool done = _parser.send("AT+GMR");
+    done &= _parser.recv("AT version:%d.%d.%d.%d", &major, &minor, &patch, &nused);
+    done &= _parser.recv("OK\n");
+    _smutex.unlock();
+
+    if(done) {
+        _at_v.major = major;
+        _at_v.minor = minor;
+        _at_v.patch = patch;
+    }
+    return _at_v;
 }
 
 bool ESP8266::stop_uart_hw_flow_ctrl(void)
