@@ -30,6 +30,7 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
       _serial_rts(rts),
       _serial_cts(cts),
       _parser(&_serial),
+      _tcp_passive(false),
       _packets(0),
       _packets_end(&_packets),
       _sdk_v(-1,-1,-1),
@@ -37,7 +38,6 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
       _connect_error(0),
       _fail(false),
       _closed(false),
-      _socket_open(),
       _connection_status(NSAPI_STATUS_DISCONNECTED),
       _heap_usage(0)
 {
@@ -57,6 +57,11 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
     _parser.oob("4,CLOSED", callback(this, &ESP8266::_oob_socket4_closed_handler));
     _parser.oob("WIFI ", callback(this, &ESP8266::_connection_status_handler));
     _parser.oob("UNLINK", callback(this, &ESP8266::_oob_socket_close_error));
+
+    for(int i= 0; i < SOCKET_COUNT; i++) {
+        _socket_open[i].id = -1;
+        _socket_open[i].proto = NSAPI_UDP;
+    }
 }
 
 bool ESP8266::at_available()
@@ -76,9 +81,9 @@ struct ESP8266::fw_sdk_version ESP8266::sdk_version()
     int patch;
 
     _smutex.lock();
-    bool done = _parser.send("AT+GMR");
-    done &= _parser.recv("SDK version:%d.%d.%d", &major, &minor, &patch);
-    done &= _parser.recv("OK\n");
+    bool done = _parser.send("AT+GMR")
+        && _parser.recv("SDK version:%d.%d.%d", &major, &minor, &patch)
+        && _parser.recv("OK\n");
     _smutex.unlock();
 
     if(done) {
@@ -97,9 +102,9 @@ struct ESP8266::fw_at_version ESP8266::at_version()
     int nused;
 
     _smutex.lock();
-    bool done = _parser.send("AT+GMR");
-    done &= _parser.recv("AT version:%d.%d.%d.%d", &major, &minor, &patch, &nused);
-    done &= _parser.recv("OK\n");
+    bool done = _parser.send("AT+GMR")
+        && _parser.recv("AT version:%d.%d.%d.%d", &major, &minor, &patch, &nused)
+        && _parser.recv("OK\n");
     _smutex.unlock();
 
     if(done) {
@@ -209,6 +214,23 @@ bool ESP8266::dhcp(bool enabled, int mode)
 
     return done;
 }
+
+bool ESP8266::cond_enable_tcp_passive_mode()
+{
+    bool done = true;
+
+    if (FW_AT_LEAST_VERSION(_at_v.major, _at_v.minor, _at_v.patch, 0, ESP8266_AT_VERSION_TCP_PASSIVE_MODE)) {
+        _smutex.lock();
+        done = _parser.send("AT+CIPRECVMODE=1")
+                && _parser.recv("OK\n");
+        _smutex.unlock();
+
+        _tcp_passive = done ? true : false;
+    }
+
+    return done;
+}
+
 
 nsapi_error_t ESP8266::connect(const char *ap, const char *passPhrase)
 {
@@ -376,7 +398,7 @@ nsapi_error_t ESP8266::open_udp(int id, const char* addr, int port, int local_po
 
     if (id >= SOCKET_COUNT) {
         return NSAPI_ERROR_PARAMETER;
-    } else if (_socket_open[id]) {
+    } else if (_socket_open[id].id == id) {
         return NSAPI_ERROR_IS_CONNECTED;
     }
 
@@ -390,7 +412,8 @@ nsapi_error_t ESP8266::open_udp(int id, const char* addr, int port, int local_po
     }
 
     if (done) {
-        _socket_open[id] = 1;
+        _socket_open[id].id = id;
+        _socket_open[id].proto = NSAPI_UDP;
     }
 
     _clear_socket_packets(id);
@@ -405,7 +428,7 @@ bool ESP8266::open_tcp(int id, const char* addr, int port, int keepalive)
     static const char *type = "TCP";
     bool done = false;
 
-    if (id >= SOCKET_COUNT || _socket_open[id]) {
+    if (id >= SOCKET_COUNT || _socket_open[id].id == id) {
         return false;
     }
 
@@ -419,7 +442,8 @@ bool ESP8266::open_tcp(int id, const char* addr, int port, int keepalive)
     }
 
     if (done) {
-        _socket_open[id] = 1;
+        _socket_open[id].id = id;
+        _socket_open[id].proto = NSAPI_TCP;
     }
 
     _clear_socket_packets(id);
@@ -467,8 +491,21 @@ void ESP8266::_packet_handler()
     int amount;
     int pdu_len;
 
-    // parse out the packet
-    if (!_parser.recv(",%d,%d:", &id, &amount)) {
+    // Get socket id
+    if (!_parser.recv(",%d,", &id)) {
+        return;
+    }
+    // In passive mode amount not used...
+    if(_tcp_passive
+            && _socket_open[id].id == id
+            && _socket_open[id].proto == NSAPI_TCP) {
+        if (!_parser.recv("%d\n", &amount)) {
+            MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_ENODATA), \
+                    "ESP8266::_packet_handler(): Data length missing");
+        }
+        return;
+    // Amount required in active mode
+    } else if (!_parser.recv("%d:", &amount)) {
         return;
     }
 
@@ -512,8 +549,41 @@ void ESP8266::process_oob(uint32_t timeout, bool all) {
     setTimeout();
 }
 
+int32_t ESP8266::_recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t timeout)
+{
+    int32_t len;
+    int32_t ret;
+
+    _smutex.lock();
+
+    bool done = _parser.send("AT+CIPRECVDATA=%d,%lu", id, amount);
+    if (!done) {
+        _smutex.unlock();
+        return NSAPI_ERROR_DEVICE_ERROR;
+    }
+    // NOTE: documentation v3.0 says '+CIPRECVDATA:<data_len>,' but it's not how the FW responds...
+    done = _parser.recv("+CIPRECVDATA,%ld:", &len)
+        && _parser.read((char*)data, len)
+        && _parser.recv("OK\n");
+
+    // Got data?
+    if (done) {
+        ret = len;
+    } else {
+        // Socket still open?
+        ret = _socket_open[id].id != id ? 0 : (int32_t)NSAPI_ERROR_WOULD_BLOCK;
+    }
+
+    _smutex.unlock();
+    return ret;
+}
+
 int32_t ESP8266::recv_tcp(int id, void *data, uint32_t amount, uint32_t timeout)
 {
+    if (_tcp_passive) {
+        return _recv_tcp_passive(id, data, amount, timeout);
+    }
+
     _smutex.lock();
 
     // No flow control, drain the USART receive register ASAP to avoid data overrun
@@ -552,7 +622,7 @@ int32_t ESP8266::recv_tcp(int id, void *data, uint32_t amount, uint32_t timeout)
             }
         }
     }
-    if(!_socket_open[id]) {
+    if(_socket_open[id].id < 0) {
         _smutex.unlock();
         return 0;
     }
@@ -634,7 +704,7 @@ bool ESP8266::close(int id)
             if (!_parser.recv("OK\n")) {
                 if (_closed) { // UNLINK ERROR
                     _closed = false;
-                    _socket_open[id] = 0;
+                    _socket_open[id].id = -1;
                     _clear_socket_packets(id);
                     _smutex.unlock();
                     // ESP8266 has a habit that it might close a socket on its own.
@@ -717,27 +787,27 @@ void ESP8266::_oob_socket_close_error()
 
 void ESP8266::_oob_socket0_closed_handler()
 {
-    _socket_open[0] = 0;
+    _socket_open[0].id = -1;
 }
 
 void ESP8266::_oob_socket1_closed_handler()
 {
-    _socket_open[1] = 0;
+    _socket_open[1].id = -1;
 }
 
 void ESP8266::_oob_socket2_closed_handler()
 {
-    _socket_open[2] = 0;
+    _socket_open[2].id = -1;
 }
 
 void ESP8266::_oob_socket3_closed_handler()
 {
-    _socket_open[3] = 0;
+    _socket_open[3].id = -1;
 }
 
 void ESP8266::_oob_socket4_closed_handler()
 {
-    _socket_open[4] = 0;
+    _socket_open[4].id = -1;
 }
 
 void ESP8266::_connection_status_handler()

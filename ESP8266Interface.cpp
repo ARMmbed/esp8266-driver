@@ -37,10 +37,6 @@
 #endif
 #endif
 
-// Firmware version
-#define ESP8266_SDK_VERSION_MAJOR 2
-#define ESP8266_AT_VERSION_MAJOR 1
-
 ESP8266Interface::ESP8266Interface()
     : _esp(MBED_CONF_ESP8266_TX, MBED_CONF_ESP8266_RX, MBED_CONF_ESP8266_DEBUG, MBED_CONF_ESP8266_RTS, MBED_CONF_ESP8266_CTS),
       _initialized(false),
@@ -290,9 +286,13 @@ nsapi_error_t ESP8266Interface::_init(void)
         if (!_get_firmware_ok()) {
             return NSAPI_ERROR_DEVICE_ERROR;
         }
-        if (_disable_default_softap() == false) {
+        if (!_disable_default_softap()) {
             return NSAPI_ERROR_DEVICE_ERROR;
         }
+        if (!_esp.cond_enable_tcp_passive_mode()) {
+            return NSAPI_ERROR_DEVICE_ERROR;
+        }
+
         _initialized = true;
     }
     return NSAPI_ERROR_OK;

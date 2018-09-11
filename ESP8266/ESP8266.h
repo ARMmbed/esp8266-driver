@@ -35,6 +35,17 @@
 #define ESP8266_MISC_TIMEOUT    2000
 #endif
 
+// Firmware version
+#define ESP8266_SDK_VERSION 2000000
+#define ESP8266_SDK_VERSION_MAJOR ESP8266_SDK_VERSION/1000000
+
+#define ESP8266_AT_VERSION 1000000
+#define ESP8266_AT_VERSION_MAJOR ESP8266_AT_VERSION/1000000
+#define ESP8266_AT_VERSION_TCP_PASSIVE_MODE 1070000
+
+#define FW_AT_LEAST_VERSION(MAJOR,MINOR,PATCH,NUSED/*Not used*/,REF) \
+    (((MAJOR)*1000000+(MINOR)*10000+(PATCH)*100) >= REF ? true : false)
+
 /** ESP8266Interface class.
     This is an interface to a ESP8266 radio.
  */
@@ -321,6 +332,11 @@ public:
      */
     bool stop_uart_hw_flow_ctrl();
 
+    /*
+     * From AT firmware v1.7.0.0 onwards enables TCP passive mode
+     */
+    bool cond_enable_tcp_passive_mode();
+
     static const int8_t WIFIMODE_STATION = 1;
     static const int8_t WIFIMODE_SOFTAP = 2;
     static const int8_t WIFIMODE_STATION_SOFTAP = 3;
@@ -332,6 +348,7 @@ private:
     PinName _serial_cts;
     ATCmdParser _parser;
     Mutex _smutex; // Protect serial port access
+    bool _tcp_passive;
 
     struct packet {
         struct packet *next;
@@ -355,16 +372,21 @@ private:
     void _oob_socket_close_error();
     void _clear_socket_packets(int id);
     void process_oob(uint32_t timeout, bool all);
+    int32_t _recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t timeout);
 
     char _ip_buffer[16];
     char _gateway_buffer[16];
     char _netmask_buffer[16];
     char _mac_buffer[18];
+    struct _sock_info {
+        int id;
+        nsapi_protocol_t proto;
+    };
 
     int _connect_error;
     bool _fail;
     bool _closed;
-    int _socket_open[SOCKET_COUNT];
+    struct _sock_info _socket_open[SOCKET_COUNT];
     nsapi_connection_status_t _connection_status;
     Callback<void(nsapi_event_t, intptr_t)> _connection_status_cb;
     size_t _heap_usage;
