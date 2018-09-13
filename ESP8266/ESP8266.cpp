@@ -552,26 +552,29 @@ void ESP8266::process_oob(uint32_t timeout, bool all) {
 int32_t ESP8266::_recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t timeout)
 {
     int32_t len;
-    int32_t ret;
+    int32_t ret = (int32_t)NSAPI_ERROR_WOULD_BLOCK;
 
     _smutex.lock();
 
-    bool done = _parser.send("AT+CIPRECVDATA=%d,%lu", id, amount);
-    if (!done) {
-        _smutex.unlock();
-        return NSAPI_ERROR_DEVICE_ERROR;
-    }
     // NOTE: documentation v3.0 says '+CIPRECVDATA:<data_len>,' but it's not how the FW responds...
-    done = _parser.recv("+CIPRECVDATA,%ld:", &len)
+    bool done = _parser.send("AT+CIPRECVDATA=%d,%lu", id, amount)
+        && _parser.recv("+CIPRECVDATA,%ld:", &len)
         && _parser.read((char*)data, len)
         && _parser.recv("OK\n");
 
-    // Got data?
     if (done) {
-        ret = len;
-    } else {
-        // Socket still open?
-        ret = _socket_open[id].id != id ? 0 : (int32_t)NSAPI_ERROR_WOULD_BLOCK;
+        _smutex.unlock();
+        return len;
+    }
+
+    // Socket closed, doesn't mean there couldn't be data left
+    if (_socket_open[id].id != id) {
+        done = _parser.send("AT+CIPRECVDATA=%d,%lu", id, amount)
+            && _parser.recv("+CIPRECVDATA,%ld:", &len)
+            && _parser.read((char*)data, len)
+            && _parser.recv("OK\n");
+
+        ret = done ? len : 0;
     }
 
     _smutex.unlock();
