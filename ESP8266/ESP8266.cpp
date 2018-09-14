@@ -644,8 +644,9 @@ int32_t ESP8266::recv_udp(int id, void *data, uint32_t amount, uint32_t timeout)
     _smutex.lock();
     setTimeout(timeout);
 
-    // Poll for inbound packets
-    while (_parser.process_oob()) {
+    // No flow control, drain the USART receive register ASAP to avoid data overrun
+    if (_serial_rts == NC) {
+        process_oob(timeout, true);
     }
 
     setTimeout();
@@ -671,6 +672,12 @@ int32_t ESP8266::recv_udp(int id, void *data, uint32_t amount, uint32_t timeout)
             return len;
         }
     }
+
+    // Flow control, read from USART receive register only when no more data is buffered, and as little as possible
+    if (_serial_rts != NC) {
+        process_oob(timeout, false);
+    }
+
     _smutex.unlock();
 
     return NSAPI_ERROR_WOULD_BLOCK;
