@@ -12,6 +12,35 @@ ESP8266 modules come in different shapes and formats, but the most important fac
 - Setting up a UDP server is not possible.
 - The serial port does not have hardware flow control enabled by default. The AT command set does not either have a way to limit the download rate. Therefore, downloading anything larger than the serial port input buffer is unreliable. An application should be able to read fast enough to stay ahead of the network. This affects mostly the TCP protocol where data would be lost with no notification. On UDP, this would lead to only packet losses which the higher layer protocol should recover from.
 
+## Mandatory configuration
+![mbed_lib.json](mbed_lib.json) configuration assumes Arduino form factor. Please adjust according to which board is in use. Parameters are overridable from your app config file.
+
+Least one is expected to check are the following configuration parameters 
+
+```javascript
+{
+    "name": "esp8266",
+    "config": {
+        "tx": {
+            "help": "TX pin for serial connection",
+            "value": "D1" <- Arduino assumed, adjust based on your board
+        },
+        "rx": {
+            "help": "RX pin for serial connection",
+            "value": "D0" <- Arduino assumed, adjust based on your board
+        },
+        "provide-default": {
+            "help": "Provide default WifiInterface. [true/false]",
+            "value": false <- Set to 'true' if this is the interface you are using  
+        },
+        "socket-bufsize": {
+            "help": "Max socket data heap usage",
+            "value": 8192 <- Without HW flow control more is better. Once the limit is reached packets are dropped - does not matter is it TCP or UDP. 
+        }
+    }
+}
+```
+
 ## UART HW flow control
 
 UART HW flow control requires you to additionally wire the CTS and RTS flow control pins between your board and your ESP8266 module. Once this is done remember to add configuration option for flow control in your app config file. Here a [ST NUCLEO-F429ZI](https://os.mbed.com/platforms/ST-Nucleo-F429ZI/) board and [ESPBee XBee Module](https://www.cascologix.com/product/espbee/) are used as an example.
