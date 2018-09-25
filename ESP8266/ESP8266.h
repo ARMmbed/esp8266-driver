@@ -132,7 +132,7 @@ public:
     *
     * @param ap the name of the AP
     * @param passPhrase the password of AP
-    * @return NSAPI_ERROR_OK only if ESP8266 is connected successfully
+    * @return NSAPI_ERROR_OK in success, negative error code in failure
     */
     nsapi_error_t connect(const char *ap, const char *passPhrase);
 
@@ -203,7 +203,7 @@ public:
     * @param addr the IP address of the destination
     * @param port the port on the destination
     * @param local_port UDP socket's local port, zero means any
-    * @return true only if socket opened successfully
+    * @return NSAPI_ERROR_OK in success, negative error code in failure
     */
     nsapi_error_t open_udp(int id, const char* addr, int port, int local_port = 0);
 
@@ -216,9 +216,9 @@ public:
     * @param addr the IP address of the destination
     * @param port the port on the destination
     * @param tcp_keepalive TCP connection's keep alive time, zero means disabled
-    * @return true only if socket opened successfully
+    * @return NSAPI_ERROR_OK in success, negative error code in failure
     */
-    bool open_tcp(int id, const char* addr, int port, int keepalive = 0);
+    nsapi_error_t open_tcp(int id, const char* addr, int port, int keepalive = 0);
 
     /**
     * Sends data to an open socket
@@ -362,6 +362,7 @@ private:
     struct fw_at_version _at_v;
     void _packet_handler();
     void _connect_error_handler();
+    void _oob_cipstart_already_connected();
     bool recv_ap(nsapi_wifi_ap_t *ap);
     void _oob_socket0_closed_handler();
     void _oob_socket1_closed_handler();
@@ -385,6 +386,7 @@ private:
 
     int _connect_error;
     bool _fail;
+    bool _sock_already;
     bool _closed;
     struct _sock_info _socket_open[SOCKET_COUNT];
     nsapi_connection_status_t _connection_status;

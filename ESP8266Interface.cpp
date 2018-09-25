@@ -409,17 +409,13 @@ int ESP8266Interface::socket_connect(void *handle, const SocketAddress &addr)
 
     if (socket->proto == NSAPI_UDP) {
         ret = _esp.open_udp(socket->id, addr.get_ip_address(), addr.get_port(), _local_ports[socket->id]);
-        if (ret != NSAPI_ERROR_OK) {
-            return ret;
-        }
     } else {
-        if (!_esp.open_tcp(socket->id, addr.get_ip_address(), addr.get_port(), socket->keepalive)) {
-            return NSAPI_ERROR_DEVICE_ERROR;
-        }
+        ret = _esp.open_tcp(socket->id, addr.get_ip_address(), addr.get_port(), socket->keepalive);
     }
 
-    socket->connected = true;
-    return 0;
+    socket->connected = (ret == NSAPI_ERROR_OK) ? true : false;
+
+    return ret;
 }
 
 int ESP8266Interface::socket_accept(void *server, void **socket, SocketAddress *addr)
