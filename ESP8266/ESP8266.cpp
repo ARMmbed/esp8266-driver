@@ -37,6 +37,7 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
       _at_v(-1,-1,-1),
       _connect_error(0),
       _fail(false),
+      _sock_already(false),
       _closed(false),
       _connection_status(NSAPI_STATUS_DISCONNECTED),
       _heap_usage(0)
@@ -57,6 +58,7 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
     _parser.oob("4,CLOSED", callback(this, &ESP8266::_oob_socket4_closed_handler));
     _parser.oob("WIFI ", callback(this, &ESP8266::_connection_status_handler));
     _parser.oob("UNLINK", callback(this, &ESP8266::_oob_socket_close_error));
+    _parser.oob("ALREADY CONNECTED", callback(this, &ESP8266::_oob_cipstart_already_connected));
 
     for(int i= 0; i < SOCKET_COUNT; i++) {
         _socket_open[i].id = -1;
@@ -396,61 +398,68 @@ nsapi_error_t ESP8266::open_udp(int id, const char* addr, int port, int local_po
     static const char *type = "UDP";
     bool done = false;
 
-    if (id >= SOCKET_COUNT) {
+    if (id >= SOCKET_COUNT || _socket_open[id].id == id) {
         return NSAPI_ERROR_PARAMETER;
-    } else if (_socket_open[id].id == id) {
-        return NSAPI_ERROR_IS_CONNECTED;
     }
 
     _smutex.lock();
     if(local_port) {
-        done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d,%d", id, type, addr, port, local_port)
-                && _parser.recv("OK\n");
+        done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d,%d", id, type, addr, port, local_port);
     } else {
-        done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port)
-               && _parser.recv("OK\n");
+        done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port);
     }
 
     if (done) {
+        if (!_parser.recv("OK\n")) {
+            if (_sock_already) {
+                _sock_already = false; // To be raised again by OOB msg
+                _smutex.unlock();
+                return NSAPI_ERROR_IS_CONNECTED;
+            }
+        }
+
         _socket_open[id].id = id;
         _socket_open[id].proto = NSAPI_UDP;
+
+        _clear_socket_packets(id);
     }
-
-    _clear_socket_packets(id);
-
     _smutex.unlock();
 
     return done ? NSAPI_ERROR_OK : NSAPI_ERROR_DEVICE_ERROR;
 }
 
-bool ESP8266::open_tcp(int id, const char* addr, int port, int keepalive)
+nsapi_error_t ESP8266::open_tcp(int id, const char* addr, int port, int keepalive)
 {
     static const char *type = "TCP";
     bool done = false;
 
     if (id >= SOCKET_COUNT || _socket_open[id].id == id) {
-        return false;
+        return NSAPI_ERROR_PARAMETER;
     }
 
     _smutex.lock();
     if(keepalive) {
-        done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d,%d", id, type, addr, port, keepalive)
-                && _parser.recv("OK\n");
+        done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d,%d", id, type, addr, port, keepalive);
     } else {
-        done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port)
-               && _parser.recv("OK\n");
+        done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port);
     }
 
     if (done) {
+        if (!_parser.recv("OK\n")) {
+            if (_sock_already) {
+                _sock_already = false; // To be raised again by OOB msg
+                _smutex.unlock();
+                return NSAPI_ERROR_IS_CONNECTED;
+            }
+        }
         _socket_open[id].id = id;
         _socket_open[id].proto = NSAPI_TCP;
+
+        _clear_socket_packets(id);
     }
-
-    _clear_socket_packets(id);
-
     _smutex.unlock();
 
-    return done;
+    return done ? NSAPI_ERROR_OK : NSAPI_ERROR_DEVICE_ERROR;
 }
 
 bool ESP8266::dns_lookup(const char* name, char* ip)
@@ -785,6 +794,13 @@ void ESP8266::_connect_error_handler()
         _fail = true;
         _parser.abort();
     }
+}
+
+
+void ESP8266::_oob_cipstart_already_connected()
+{
+    _sock_already = true;
+    _parser.abort();
 }
 
 void ESP8266::_oob_socket_close_error()
