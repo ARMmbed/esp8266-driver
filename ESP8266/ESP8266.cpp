@@ -403,26 +403,33 @@ nsapi_error_t ESP8266::open_udp(int id, const char* addr, int port, int local_po
     }
 
     _smutex.lock();
-    if(local_port) {
-        done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d,%d", id, type, addr, port, local_port);
-    } else {
-        done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port);
-    }
 
-    if (done) {
-        if (!_parser.recv("OK\n")) {
-            if (_sock_already) {
-                _sock_already = false; // To be raised again by OOB msg
-                _smutex.unlock();
-                return NSAPI_ERROR_IS_CONNECTED;
-            }
+    for (int i = 0; i < 2; i++) {
+        if(local_port) {
+            done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d,%d", id, type, addr, port, local_port);
+        } else {
+            done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port);
         }
 
-        _socket_open[id].id = id;
-        _socket_open[id].proto = NSAPI_UDP;
-
-        _clear_socket_packets(id);
+        if (done) {
+            if (!_parser.recv("OK\n")) {
+                if (_sock_already) {
+                    _sock_already = false; // To be raised again by OOB msg
+                    done = close(id);
+                    if (!done) {
+                        MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CLOSE_FAILED), \
+                                "ESP8266::_open_udp: device refused to close socket");
+                    }
+                }
+                continue;
+            }
+            _socket_open[id].id = id;
+            _socket_open[id].proto = NSAPI_UDP;
+            break;
+        }
     }
+    _clear_socket_packets(id);
+
     _smutex.unlock();
 
     return done ? NSAPI_ERROR_OK : NSAPI_ERROR_DEVICE_ERROR;
@@ -438,25 +445,33 @@ nsapi_error_t ESP8266::open_tcp(int id, const char* addr, int port, int keepaliv
     }
 
     _smutex.lock();
-    if(keepalive) {
-        done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d,%d", id, type, addr, port, keepalive);
-    } else {
-        done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port);
-    }
 
-    if (done) {
-        if (!_parser.recv("OK\n")) {
-            if (_sock_already) {
-                _sock_already = false; // To be raised again by OOB msg
-                _smutex.unlock();
-                return NSAPI_ERROR_IS_CONNECTED;
-            }
+    for (int i = 0; i < 2; i++) {
+        if(keepalive) {
+            done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d,%d", id, type, addr, port, keepalive);
+        } else {
+            done = _parser.send("AT+CIPSTART=%d,\"%s\",\"%s\",%d", id, type, addr, port);
         }
-        _socket_open[id].id = id;
-        _socket_open[id].proto = NSAPI_TCP;
 
-        _clear_socket_packets(id);
+        if (done) {
+            if (!_parser.recv("OK\n")) {
+                if (_sock_already) {
+                    _sock_already = false; // To be raised again by OOB msg
+                    done = close(id);
+                    if (!done) {
+                        MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CLOSE_FAILED), \
+                                "ESP8266::_open_tcp: device refused to close socket");
+                    }
+                }
+                continue;
+            }
+            _socket_open[id].id = id;
+            _socket_open[id].proto = NSAPI_TCP;
+            break;
+        }
     }
+    _clear_socket_packets(id);
+
     _smutex.unlock();
 
     return done ? NSAPI_ERROR_OK : NSAPI_ERROR_DEVICE_ERROR;
