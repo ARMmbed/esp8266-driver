@@ -61,8 +61,8 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
     _parser.oob("ALREADY CONNECTED", callback(this, &ESP8266::_oob_cipstart_already_connected));
 
     for(int i= 0; i < SOCKET_COUNT; i++) {
-        _socket_open[i].id = -1;
-        _socket_open[i].proto = NSAPI_UDP;
+        _sinfo[i].open = false;
+        _sinfo[i].proto = NSAPI_UDP;
     }
 }
 
@@ -398,7 +398,7 @@ nsapi_error_t ESP8266::open_udp(int id, const char* addr, int port, int local_po
     static const char *type = "UDP";
     bool done = false;
 
-    if (id >= SOCKET_COUNT || _socket_open[id].id == id) {
+    if (id >= SOCKET_COUNT || _sinfo[id].open) {
         return NSAPI_ERROR_PARAMETER;
     }
 
@@ -423,8 +423,8 @@ nsapi_error_t ESP8266::open_udp(int id, const char* addr, int port, int local_po
                 }
                 continue;
             }
-            _socket_open[id].id = id;
-            _socket_open[id].proto = NSAPI_UDP;
+            _sinfo[id].open = true;
+            _sinfo[id].proto = NSAPI_UDP;
             break;
         }
     }
@@ -440,7 +440,7 @@ nsapi_error_t ESP8266::open_tcp(int id, const char* addr, int port, int keepaliv
     static const char *type = "TCP";
     bool done = false;
 
-    if (id >= SOCKET_COUNT || _socket_open[id].id == id) {
+    if (id >= SOCKET_COUNT || _sinfo[id].open) {
         return NSAPI_ERROR_PARAMETER;
     }
 
@@ -465,8 +465,8 @@ nsapi_error_t ESP8266::open_tcp(int id, const char* addr, int port, int keepaliv
                 }
                 continue;
             }
-            _socket_open[id].id = id;
-            _socket_open[id].proto = NSAPI_TCP;
+            _sinfo[id].open = true;
+            _sinfo[id].proto = NSAPI_TCP;
             break;
         }
     }
@@ -521,8 +521,8 @@ void ESP8266::_packet_handler()
     }
     // In passive mode amount not used...
     if(_tcp_passive
-            && _socket_open[id].id == id
-            && _socket_open[id].proto == NSAPI_TCP) {
+            && _sinfo[id].open == true
+            && _sinfo[id].proto == NSAPI_TCP) {
         if (!_parser.recv("%d\n", &amount)) {
             MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_ENODATA), \
                     "ESP8266::_packet_handler(): Data length missing");
@@ -592,7 +592,7 @@ int32_t ESP8266::_recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t
     }
 
     // Socket closed, doesn't mean there couldn't be data left
-    if (_socket_open[id].id != id) {
+    if (!_sinfo[id].open) {
         done = _parser.send("AT+CIPRECVDATA=%d,%lu", id, amount)
             && _parser.recv("+CIPRECVDATA,%ld:", &len)
             && _parser.read((char*)data, len)
@@ -649,7 +649,7 @@ int32_t ESP8266::recv_tcp(int id, void *data, uint32_t amount, uint32_t timeout)
             }
         }
     }
-    if(_socket_open[id].id < 0) {
+    if(!_sinfo[id].open) {
         _smutex.unlock();
         return 0;
     }
@@ -738,7 +738,7 @@ bool ESP8266::close(int id)
             if (!_parser.recv("OK\n")) {
                 if (_closed) { // UNLINK ERROR
                     _closed = false;
-                    _socket_open[id].id = -1;
+                    _sinfo[id].open = false;
                     _clear_socket_packets(id);
                     _smutex.unlock();
                     // ESP8266 has a habit that it might close a socket on its own.
@@ -829,27 +829,27 @@ void ESP8266::_oob_socket_close_error()
 
 void ESP8266::_oob_socket0_closed_handler()
 {
-    _socket_open[0].id = -1;
+    _sinfo[0].open = false;
 }
 
 void ESP8266::_oob_socket1_closed_handler()
 {
-    _socket_open[1].id = -1;
+    _sinfo[1].open = false;
 }
 
 void ESP8266::_oob_socket2_closed_handler()
 {
-    _socket_open[2].id = -1;
+    _sinfo[2].open = false;
 }
 
 void ESP8266::_oob_socket3_closed_handler()
 {
-    _socket_open[3].id = -1;
+    _sinfo[3].open = false;
 }
 
 void ESP8266::_oob_socket4_closed_handler()
 {
-    _socket_open[4].id = -1;
+    _sinfo[4].open = false;
 }
 
 void ESP8266::_connection_status_handler()

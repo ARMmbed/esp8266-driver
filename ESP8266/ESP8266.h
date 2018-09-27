@@ -380,7 +380,7 @@ private:
     char _netmask_buffer[16];
     char _mac_buffer[18];
     struct _sock_info {
-        int id;
+        bool open;
         nsapi_protocol_t proto;
     };
 
@@ -388,7 +388,7 @@ private:
     bool _fail;
     bool _sock_already;
     bool _closed;
-    struct _sock_info _socket_open[SOCKET_COUNT];
+    struct _sock_info _sinfo[SOCKET_COUNT];
     nsapi_connection_status_t _connection_status;
     Callback<void(nsapi_event_t, intptr_t)> _connection_status_cb;
     size_t _heap_usage;
