@@ -4,20 +4,28 @@ The Mbed OS driver for the ESP8266 WiFi module.
 
 ## Firmware version
 
-ESP8266 modules come in different shapes and formats, but the most important factor is the firmware version in it. To make sure that the firmware in your module is compatible with Mbed OS, follow the [Update guide](https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update).
+ESP8266 modules come in different shapes and formats, but the most important factor is the firmware version in it. To
+make sure that the firmware in your module is compatible with Mbed OS, follow the
+[Update guide](https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update).
 
-It is advicable to update the [AT firmware](https://www.espressif.com/en/support/download/at?keys=) at least to version 1.7.0.0
+It is advisable to update the [AT firmware](https://www.espressif.com/en/support/download/at?keys=) at least to version
+1.7.0.0
 
 ## Restrictions
 
 - The ESP8266 WiFi module does not allow the TCP client to bind on a specific port.
 - Setting up a UDP server is not possible.
-- The serial port does not have hardware flow control enabled by default. The AT command set does not either have a way to limit the download rate. Therefore, downloading anything larger than the serial port input buffer is unreliable. An application should be able to read fast enough to stay ahead of the network. This affects mostly the TCP protocol where data would be lost with no notification. On UDP, this would lead to only packet losses which the higher layer protocol should recover from.
+- The serial port does not have hardware flow control enabled by default. The AT command set does not either have a way
+to limit the download rate. Therefore, downloading anything larger than the serial port input buffer is unreliable. An
+application should be able to read fast enough to stay ahead of the network. This affects mostly the TCP protocol where
+data would be lost with no notification. On UDP, this would lead to only packet losses which the higher layer protocol
+should recover from.
 
 ## Mandatory configuration
-![mbed_lib.json](mbed_lib.json) configuration assumes Arduino form factor. Please adjust according to which board is in use. Parameters are overridable from your app config file.
+![mbed_lib.json](mbed_lib.json) configuration assumes Arduino form factor. Please adjust according to which board is in
+use. Parameters are overridable from your app config file.
 
-Least one is expected to check are the following configuration parameters 
+Least one is expected to check are the following configuration parameters
 
 ```javascript
 {
@@ -33,11 +41,12 @@ Least one is expected to check are the following configuration parameters
         },
         "provide-default": {
             "help": "Provide default WifiInterface. [true/false]",
-            "value": false <- Set to 'true' if this is the interface you are using  
+            "value": false <- Set to 'true' if this is the interface you are using
         },
         "socket-bufsize": {
             "help": "Max socket data heap usage",
-            "value": 8192 <- Without HW flow control more is better. Once the limit is reached packets are dropped - does not matter is it TCP or UDP. 
+            "value": 8192 <- Without HW flow control more is better. Once the limit is reached packets are
+                             dropped - does not matter is it TCP or UDP.
         }
     }
 }
@@ -45,11 +54,15 @@ Least one is expected to check are the following configuration parameters
 
 ## UART HW flow control
 
-UART HW flow control requires you to additionally wire the CTS and RTS flow control pins between your board and your ESP8266 module. Once this is done remember to add configuration option for flow control in your app config file. Here a [ST NUCLEO-F429ZI](https://os.mbed.com/platforms/ST-Nucleo-F429ZI/) board and [ESPBee XBee Module](https://www.cascologix.com/product/espbee/) are used as an example.
+UART HW flow control requires you to additionally wire the CTS and RTS flow control pins between your board and your
+ESP8266 module. Once this is done remember to add configuration option for flow control in your app config file. Here a
+[ST NUCLEO-F429ZI](https://os.mbed.com/platforms/ST-Nucleo-F429ZI/) board and
+[ESPBee XBee Module](https://www.cascologix.com/product/espbee/) are used as an example.
 
 **NOTE** Not all modules expose ESP8266's RTS and CTS pins so beware when you are choosing one.
 
-Once you have your HW set up add configuration like this in your app config - Arduino pins D1 and D0 assumed for TX and RX:
+Once you have your HW set up add configuration like this in your app config - Arduino pins D1 and D0 assumed to be used
+as TX and RX:
 
 ``` javascript
 "target_overrides": {
@@ -72,9 +85,11 @@ Once you have your HW set up add configuration like this in your app config - Ar
     4. CTS - CTS (ESPBee XBee headers)
 
 ### Connections
-With these pictures only consider the green and yellow wires which are connected to ESP8266. Pink wire is for reset and the rest for firmware update. TX and RX go through Arduino pins D1 and D0.
+With these pictures only consider the green and yellow wires which are connected to ESP8266. Pink wire is for reset and
+the rest for firmware update. TX and RX go through Arduino pins D1 and D0.
 
-**NOTE** GPIO15(ESPBee RTS) needs to be pulled down during startup to boot from flash, instead of firmware update or boot from SD card. Once the software is running the same pin is used as the RTS pin.
+**NOTE** GPIO15(ESPBee RTS) needs to be pulled down during startup to boot from flash, instead of firmware update or
+boot from SD card. Once the software is running the same pin is used as the RTS pin.
 
     1. Board TX - ESP8266 RX
     2. Board RX - ESP8266 TX
