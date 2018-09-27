@@ -6,6 +6,8 @@ The Mbed OS driver for the ESP8266 WiFi module.
 
 ESP8266 modules come in different shapes and formats, but the most important factor is the firmware version in it. To make sure that the firmware in your module is compatible with Mbed OS, follow the [Update guide](https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update).
 
+It is advicable to update the [AT firmware](https://www.espressif.com/en/support/download/at?keys=) at least to version 1.7.0.0
+
 ## Restrictions
 
 - The ESP8266 WiFi module does not allow the TCP client to bind on a specific port.
