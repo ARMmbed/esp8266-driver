@@ -166,7 +166,7 @@ public:
 
     /** Get the local network mask
      *
-     *  @return         Null-terminated representation of the local network mask 
+     *  @return         Null-terminated representation of the local network mask
      *                  or null if no network mask has been recieved
      */
     const char *netmask();
@@ -185,7 +185,7 @@ public:
      *               see @a nsapi_error
      */
     int scan(WiFiAccessPoint *res, unsigned limit);
-    
+
     /**Perform a dns query
     *
     * @param name Hostname to resolve
