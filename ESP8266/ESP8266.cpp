@@ -26,43 +26,43 @@
 #define ESP8266_ALL_SOCKET_IDS      -1
 
 ESP8266::ESP8266(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
-    : _serial(tx, rx, ESP8266_DEFAULT_BAUD_RATE),
+    : _sdk_v(-1,-1,-1),
+      _at_v(-1,-1,-1),
+      _tcp_passive(false),
+      _serial(tx, rx, ESP8266_DEFAULT_BAUD_RATE),
       _serial_rts(rts),
       _serial_cts(cts),
       _parser(&_serial),
-      _tcp_passive(false),
       _packets(0),
       _packets_end(&_packets),
-      _sdk_v(-1,-1,-1),
-      _at_v(-1,-1,-1),
+      _heap_usage(0),
       _connect_error(0),
       _fail(false),
       _sock_already(false),
       _closed(false),
-      _connection_status(NSAPI_STATUS_DISCONNECTED),
-      _heap_usage(0)
+      _connection_status(NSAPI_STATUS_DISCONNECTED)
 {
     _serial.set_baud( ESP8266_DEFAULT_BAUD_RATE );
     _parser.debug_on(debug);
     _parser.set_delimiter("\r\n");
-    _parser.oob("+IPD", callback(this, &ESP8266::_packet_handler));
+    _parser.oob("+IPD", callback(this, &ESP8266::_oob_packet_hdlr));
     //Note: espressif at command document says that this should be +CWJAP_CUR:<error code>
     //but seems that at least current version is not sending it
     //https://www.espressif.com/sites/default/files/documentation/4a-esp8266_at_instruction_set_en.pdf
     //Also seems that ERROR is not sent, but FAIL instead
-    _parser.oob("+CWJAP:", callback(this, &ESP8266::_connect_error_handler));
-    _parser.oob("0,CLOSED", callback(this, &ESP8266::_oob_socket0_closed_handler));
-    _parser.oob("1,CLOSED", callback(this, &ESP8266::_oob_socket1_closed_handler));
-    _parser.oob("2,CLOSED", callback(this, &ESP8266::_oob_socket2_closed_handler));
-    _parser.oob("3,CLOSED", callback(this, &ESP8266::_oob_socket3_closed_handler));
-    _parser.oob("4,CLOSED", callback(this, &ESP8266::_oob_socket4_closed_handler));
-    _parser.oob("WIFI ", callback(this, &ESP8266::_connection_status_handler));
-    _parser.oob("UNLINK", callback(this, &ESP8266::_oob_socket_close_error));
-    _parser.oob("ALREADY CONNECTED", callback(this, &ESP8266::_oob_cipstart_already_connected));
+    _parser.oob("0,CLOSED", callback(this, &ESP8266::_oob_socket0_closed));
+    _parser.oob("1,CLOSED", callback(this, &ESP8266::_oob_socket1_closed));
+    _parser.oob("2,CLOSED", callback(this, &ESP8266::_oob_socket2_closed));
+    _parser.oob("3,CLOSED", callback(this, &ESP8266::_oob_socket3_closed));
+    _parser.oob("4,CLOSED", callback(this, &ESP8266::_oob_socket4_closed));
+    _parser.oob("+CWJAP:", callback(this, &ESP8266::_oob_connect_err));
+    _parser.oob("WIFI ", callback(this, &ESP8266::_oob_connection_status));
+    _parser.oob("UNLINK", callback(this, &ESP8266::_oob_socket_close_err));
+    _parser.oob("ALREADY CONNECTED", callback(this, &ESP8266::_oob_cipstart_already));
 
     for(int i= 0; i < SOCKET_COUNT; i++) {
-        _sinfo[i].open = false;
-        _sinfo[i].proto = NSAPI_UDP;
+        _sock_i[i].open = false;
+        _sock_i[i].proto = NSAPI_UDP;
     }
 }
 
@@ -377,7 +377,7 @@ int ESP8266::scan(WiFiAccessPoint *res, unsigned limit)
         return NSAPI_ERROR_DEVICE_ERROR;
     }
 
-    while (recv_ap(&ap)) {
+    while (_recv_ap(&ap)) {
         if (cnt < limit) {
             res[cnt] = WiFiAccessPoint(ap);
         }
@@ -398,7 +398,7 @@ nsapi_error_t ESP8266::open_udp(int id, const char* addr, int port, int local_po
     static const char *type = "UDP";
     bool done = false;
 
-    if (id >= SOCKET_COUNT || _sinfo[id].open) {
+    if (id >= SOCKET_COUNT || _sock_i[id].open) {
         return NSAPI_ERROR_PARAMETER;
     }
 
@@ -423,8 +423,8 @@ nsapi_error_t ESP8266::open_udp(int id, const char* addr, int port, int local_po
                 }
                 continue;
             }
-            _sinfo[id].open = true;
-            _sinfo[id].proto = NSAPI_UDP;
+            _sock_i[id].open = true;
+            _sock_i[id].proto = NSAPI_UDP;
             break;
         }
     }
@@ -440,7 +440,7 @@ nsapi_error_t ESP8266::open_tcp(int id, const char* addr, int port, int keepaliv
     static const char *type = "TCP";
     bool done = false;
 
-    if (id >= SOCKET_COUNT || _sinfo[id].open) {
+    if (id >= SOCKET_COUNT || _sock_i[id].open) {
         return NSAPI_ERROR_PARAMETER;
     }
 
@@ -465,8 +465,8 @@ nsapi_error_t ESP8266::open_tcp(int id, const char* addr, int port, int keepaliv
                 }
                 continue;
             }
-            _sinfo[id].open = true;
-            _sinfo[id].proto = NSAPI_TCP;
+            _sock_i[id].open = true;
+            _sock_i[id].proto = NSAPI_TCP;
             break;
         }
     }
@@ -509,7 +509,7 @@ nsapi_error_t ESP8266::send(int id, const void *data, uint32_t amount)
     return NSAPI_ERROR_DEVICE_ERROR;
 }
 
-void ESP8266::_packet_handler()
+void ESP8266::_oob_packet_hdlr()
 {
     int id;
     int amount;
@@ -521,8 +521,8 @@ void ESP8266::_packet_handler()
     }
     // In passive mode amount not used...
     if(_tcp_passive
-            && _sinfo[id].open == true
-            && _sinfo[id].proto == NSAPI_TCP) {
+            && _sock_i[id].open == true
+            && _sock_i[id].proto == NSAPI_TCP) {
         if (!_parser.recv("%d\n", &amount)) {
             MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_ENODATA), \
                     "ESP8266::_packet_handler(): Data length missing");
@@ -565,7 +565,7 @@ void ESP8266::_packet_handler()
     _packets_end = &packet->next;
 }
 
-void ESP8266::process_oob(uint32_t timeout, bool all) {
+void ESP8266::_process_oob(uint32_t timeout, bool all) {
     set_timeout(timeout);
     // Poll for inbound packets
     while (_parser.process_oob() && all) {
@@ -592,7 +592,7 @@ int32_t ESP8266::_recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t
     }
 
     // Socket closed, doesn't mean there couldn't be data left
-    if (!_sinfo[id].open) {
+    if (!_sock_i[id].open) {
         done = _parser.send("AT+CIPRECVDATA=%d,%lu", id, amount)
             && _parser.recv("+CIPRECVDATA,%ld:", &len)
             && _parser.read((char*)data, len)
@@ -615,7 +615,7 @@ int32_t ESP8266::recv_tcp(int id, void *data, uint32_t amount, uint32_t timeout)
 
     // No flow control, drain the USART receive register ASAP to avoid data overrun
     if (_serial_rts == NC) {
-        process_oob(timeout, true);
+        _process_oob(timeout, true);
     }
 
     // check if any packets are ready for us
@@ -649,14 +649,14 @@ int32_t ESP8266::recv_tcp(int id, void *data, uint32_t amount, uint32_t timeout)
             }
         }
     }
-    if(!_sinfo[id].open) {
+    if(!_sock_i[id].open) {
         _smutex.unlock();
         return 0;
     }
 
     // Flow control, read from USART receive register only when no more data is buffered, and as little as possible
     if (_serial_rts != NC) {
-        process_oob(timeout, false);
+        _process_oob(timeout, false);
     }
     _smutex.unlock();
 
@@ -670,7 +670,7 @@ int32_t ESP8266::recv_udp(int id, void *data, uint32_t amount, uint32_t timeout)
 
     // No flow control, drain the USART receive register ASAP to avoid data overrun
     if (_serial_rts == NC) {
-        process_oob(timeout, true);
+        _process_oob(timeout, true);
     }
 
     set_timeout();
@@ -699,7 +699,7 @@ int32_t ESP8266::recv_udp(int id, void *data, uint32_t amount, uint32_t timeout)
 
     // Flow control, read from USART receive register only when no more data is buffered, and as little as possible
     if (_serial_rts != NC) {
-        process_oob(timeout, false);
+        _process_oob(timeout, false);
     }
 
     _smutex.unlock();
@@ -738,7 +738,7 @@ bool ESP8266::close(int id)
             if (!_parser.recv("OK\n")) {
                 if (_closed) { // UNLINK ERROR
                     _closed = false;
-                    _sinfo[id].open = false;
+                    _sock_i[id].open = false;
                     _clear_socket_packets(id);
                     _smutex.unlock();
                     // ESP8266 has a habit that it might close a socket on its own.
@@ -746,7 +746,7 @@ bool ESP8266::close(int id)
                     return true;
                 }
             } else {
-                _socket_open[id].id = -1;
+                _sock_i[id].open = false;
                 _clear_socket_packets(id);
                 _smutex.unlock();
                 return true;
@@ -783,7 +783,7 @@ void ESP8266::attach(mbed::Callback<void(nsapi_event_t, intptr_t)> status_cb)
     _connection_status_cb = status_cb;
 }
 
-bool ESP8266::recv_ap(nsapi_wifi_ap_t *ap)
+bool ESP8266::_recv_ap(nsapi_wifi_ap_t *ap)
 {
     int sec;
     int dummy;
@@ -801,7 +801,7 @@ bool ESP8266::recv_ap(nsapi_wifi_ap_t *ap)
     return ret;
 }
 
-void ESP8266::_connect_error_handler()
+void ESP8266::_oob_connect_err()
 {
     _fail = false;
     _connect_error = 0;
@@ -813,13 +813,13 @@ void ESP8266::_connect_error_handler()
 }
 
 
-void ESP8266::_oob_cipstart_already_connected()
+void ESP8266::_oob_cipstart_already()
 {
     _sock_already = true;
     _parser.abort();
 }
 
-void ESP8266::_oob_socket_close_error()
+void ESP8266::_oob_socket_close_err()
 {
     if (_parser.recv("ERROR\n")) {
         _closed = true; // Not possible to pinpoint to a certain socket
@@ -827,32 +827,32 @@ void ESP8266::_oob_socket_close_error()
     }
 }
 
-void ESP8266::_oob_socket0_closed_handler()
+void ESP8266::_oob_socket0_closed()
 {
-    _sinfo[0].open = false;
+    _sock_i[0].open = false;
 }
 
-void ESP8266::_oob_socket1_closed_handler()
+void ESP8266::_oob_socket1_closed()
 {
-    _sinfo[1].open = false;
+    _sock_i[1].open = false;
 }
 
-void ESP8266::_oob_socket2_closed_handler()
+void ESP8266::_oob_socket2_closed()
 {
-    _sinfo[2].open = false;
+    _sock_i[2].open = false;
 }
 
-void ESP8266::_oob_socket3_closed_handler()
+void ESP8266::_oob_socket3_closed()
 {
-    _sinfo[3].open = false;
+    _sock_i[3].open = false;
 }
 
-void ESP8266::_oob_socket4_closed_handler()
+void ESP8266::_oob_socket4_closed()
 {
-    _sinfo[4].open = false;
+    _sock_i[4].open = false;
 }
 
-void ESP8266::_connection_status_handler()
+void ESP8266::_oob_connection_status()
 {
     char status[13];
     if (_parser.recv("%12[^\"]\n", status)) {

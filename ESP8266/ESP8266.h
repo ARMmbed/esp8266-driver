@@ -343,13 +343,27 @@ public:
     static const int8_t SOCKET_COUNT = 5;
 
 private:
+    // FW version
+    struct fw_sdk_version _sdk_v;
+    struct fw_at_version _at_v;
+
+    // FW version specific settings and functionalities
+    bool _tcp_passive;
+    int32_t _recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t timeout);
+
+    // UART settings
     UARTSerial _serial;
     PinName _serial_rts;
     PinName _serial_cts;
-    ATCmdParser _parser;
     Mutex _smutex; // Protect serial port access
-    bool _tcp_passive;
 
+    // AT Command Parser
+    ATCmdParser _parser;
+
+    // Wifi scan result handling
+    bool _recv_ap(nsapi_wifi_ap_t *ap);
+
+    // Socket data buffer
     struct packet {
         struct packet *next;
         int id;
@@ -357,41 +371,48 @@ private:
         uint32_t alloc_len; // Original length
         // data follows
     } *_packets, **_packets_end;
-
-    struct fw_sdk_version _sdk_v;
-    struct fw_at_version _at_v;
-    void _packet_handler();
-    void _connect_error_handler();
-    void _oob_cipstart_already_connected();
-    bool recv_ap(nsapi_wifi_ap_t *ap);
-    void _oob_socket0_closed_handler();
-    void _oob_socket1_closed_handler();
-    void _oob_socket2_closed_handler();
-    void _oob_socket3_closed_handler();
-    void _oob_socket4_closed_handler();
-    void _connection_status_handler();
-    void _oob_socket_close_error();
     void _clear_socket_packets(int id);
-    void process_oob(uint32_t timeout, bool all);
-    int32_t _recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t timeout);
 
-    char _ip_buffer[16];
-    char _gateway_buffer[16];
-    char _netmask_buffer[16];
-    char _mac_buffer[18];
-    struct _sock_info {
-        bool open;
-        nsapi_protocol_t proto;
-    };
+    // Memory statistics
+    size_t _heap_usage; // (Socket data buffer usage)
 
+    // OOB processing
+    void _process_oob(uint32_t timeout, bool all);
+
+    // OOB message handlers
+    void _oob_packet_hdlr();
+    void _oob_connect_err();
+    void _oob_cipstart_already();
+    void _oob_socket0_closed();
+    void _oob_socket1_closed();
+    void _oob_socket2_closed();
+    void _oob_socket3_closed();
+    void _oob_socket4_closed();
+    void _oob_connection_status();
+    void _oob_socket_close_err();
+
+    // OOB state variables
     int _connect_error;
     bool _fail;
     bool _sock_already;
     bool _closed;
-    struct _sock_info _sinfo[SOCKET_COUNT];
+
+    // Modem's address info
+    char _ip_buffer[16];
+    char _gateway_buffer[16];
+    char _netmask_buffer[16];
+    char _mac_buffer[18];
+
+    // Modem's socket info
+    struct _sock_info {
+        bool open;
+        nsapi_protocol_t proto;
+    };
+    struct _sock_info _sock_i[SOCKET_COUNT];
+
+    // Connection state reporting
     nsapi_connection_status_t _connection_status;
     Callback<void(nsapi_event_t, intptr_t)> _connection_status_cb;
-    size_t _heap_usage;
 };
 
 #endif
