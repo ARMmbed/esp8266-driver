@@ -746,7 +746,7 @@ bool ESP8266::close(int id)
                     return true;
                 }
             } else {
-                _sock_i[id].open = false;
+                // _sock_i[id].open set to false with an OOB
                 _clear_socket_packets(id);
                 _smutex.unlock();
                 return true;
