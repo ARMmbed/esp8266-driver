@@ -148,34 +148,34 @@ public:
     *
     * @return null-teriminated IP address or null if no IP address is assigned
     */
-    const char *getIPAddress(void);
+    const char *ip_addr(void);
 
     /**
     * Get the MAC address of ESP8266
     *
     * @return null-terminated MAC address or null if no MAC address is assigned
     */
-    const char *getMACAddress(void);
+    const char *mac_addr(void);
 
      /** Get the local gateway
      *
      *  @return         Null-terminated representation of the local gateway
      *                  or null if no network mask has been recieved
      */
-    const char *getGateway();
+    const char *gateway();
 
     /** Get the local network mask
      *
      *  @return         Null-terminated representation of the local network mask 
      *                  or null if no network mask has been recieved
      */
-    const char *getNetmask();
+    const char *netmask();
 
     /* Return RSSI for active connection
      *
      * @return      Measured RSSI
      */
-    int8_t getRSSI();
+    int8_t rssi();
 
     /** Scan for available networks
      *
@@ -263,7 +263,7 @@ public:
     *
     * @param timeout_ms timeout of the connection
     */
-    void setTimeout(uint32_t timeout_ms=ESP8266_MISC_TIMEOUT);
+    void set_timeout(uint32_t timeout_ms=ESP8266_MISC_TIMEOUT);
 
     /**
     * Checks if data is available
@@ -305,10 +305,10 @@ public:
      *
      * return Station, SoftAP or SoftAP+Station - 0 on failure
      */
-    int8_t get_default_wifi_mode();
+    int8_t default_wifi_mode();
 
     /**
-     * Write default Wifi mode to flash
+     * Default Wifi mode written to flash only if changes
      */
     bool set_default_wifi_mode(const int8_t mode);
 
@@ -316,7 +316,7 @@ public:
      *
      *  @return         The connection status according to ConnectionStatusType
      */
-    nsapi_connection_status_t get_connection_status() const;
+    nsapi_connection_status_t connection_status() const;
 
     /**
      * Start board's and ESP8266's UART flow control

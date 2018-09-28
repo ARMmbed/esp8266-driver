@@ -171,12 +171,12 @@ bool ESP8266::startup(int mode)
     }
 
     _smutex.lock();
-    setTimeout(ESP8266_CONNECT_TIMEOUT);
+    set_timeout(ESP8266_CONNECT_TIMEOUT);
     bool done = _parser.send("AT+CWMODE_CUR=%d", mode)
             && _parser.recv("OK\n")
             &&_parser.send("AT+CIPMUX=1")
             && _parser.recv("OK\n");
-    setTimeout(); //Restore default
+    set_timeout(); //Restore default
     _smutex.unlock();
 
     return done;
@@ -185,7 +185,7 @@ bool ESP8266::startup(int mode)
 bool ESP8266::reset(void)
 {
     _smutex.lock();
-    setTimeout(ESP8266_CONNECT_TIMEOUT);
+    set_timeout(ESP8266_CONNECT_TIMEOUT);
 
     for (int i = 0; i < 2; i++) {
         if (_parser.send("AT+RST")
@@ -196,7 +196,7 @@ bool ESP8266::reset(void)
             return true;
         }
     }
-    setTimeout();
+    set_timeout();
     _smutex.unlock();
 
     return false;
@@ -237,7 +237,7 @@ bool ESP8266::cond_enable_tcp_passive_mode()
 nsapi_error_t ESP8266::connect(const char *ap, const char *passPhrase)
 {
     _smutex.lock();
-    setTimeout(ESP8266_CONNECT_TIMEOUT);
+    set_timeout(ESP8266_CONNECT_TIMEOUT);
     _connection_status = NSAPI_STATUS_CONNECTING;
     if(_connection_status_cb)
         _connection_status_cb(NSAPI_EVENT_CONNECTION_STATUS_CHANGE, _connection_status);
@@ -261,7 +261,7 @@ nsapi_error_t ESP8266::connect(const char *ap, const char *passPhrase)
             return ret;
         }
     }
-    setTimeout();
+    set_timeout();
     _smutex.unlock();
 
     return NSAPI_ERROR_OK;
@@ -276,23 +276,23 @@ bool ESP8266::disconnect(void)
     return done;
 }
 
-const char *ESP8266::getIPAddress(void)
+const char *ESP8266::ip_addr(void)
 {
     _smutex.lock();
-    setTimeout(ESP8266_CONNECT_TIMEOUT);
+    set_timeout(ESP8266_CONNECT_TIMEOUT);
     if (!(_parser.send("AT+CIFSR")
         && _parser.recv("+CIFSR:STAIP,\"%15[^\"]\"", _ip_buffer)
         && _parser.recv("OK\n"))) {
         _smutex.unlock();
         return 0;
     }
-    setTimeout();
+    set_timeout();
     _smutex.unlock();
 
     return _ip_buffer;
 }
 
-const char *ESP8266::getMACAddress(void)
+const char *ESP8266::mac_addr(void)
 {
     _smutex.lock();
     if (!(_parser.send("AT+CIFSR")
@@ -306,7 +306,7 @@ const char *ESP8266::getMACAddress(void)
     return _mac_buffer;
 }
 
-const char *ESP8266::getGateway()
+const char *ESP8266::gateway()
 {
     _smutex.lock();
     if (!(_parser.send("AT+CIPSTA_CUR?")
@@ -320,7 +320,7 @@ const char *ESP8266::getGateway()
     return _gateway_buffer;
 }
 
-const char *ESP8266::getNetmask()
+const char *ESP8266::netmask()
 {
     _smutex.lock();
     if (!(_parser.send("AT+CIPSTA_CUR?")
@@ -334,31 +334,31 @@ const char *ESP8266::getNetmask()
     return _netmask_buffer;
 }
 
-int8_t ESP8266::getRSSI()
+int8_t ESP8266::rssi()
 {
     int8_t rssi;
     char bssid[18];
 
     _smutex.lock();
-    setTimeout(ESP8266_CONNECT_TIMEOUT);
+    set_timeout(ESP8266_CONNECT_TIMEOUT);
     if (!(_parser.send("AT+CWJAP_CUR?")
         && _parser.recv("+CWJAP_CUR:\"%*[^\"]\",\"%17[^\"]\"", bssid)
         && _parser.recv("OK\n"))) {
        _smutex.unlock();
         return 0;
     }
-    setTimeout();
+    set_timeout();
    _smutex.unlock();
 
    _smutex.lock();
-   setTimeout(ESP8266_CONNECT_TIMEOUT);
+   set_timeout(ESP8266_CONNECT_TIMEOUT);
     if (!(_parser.send("AT+CWLAP=\"\",\"%s\",", bssid)
         && _parser.recv("+CWLAP:(%*d,\"%*[^\"]\",%hhd,", &rssi)
         && _parser.recv("OK\n"))) {
         _smutex.unlock();
         return 0;
     }
-    setTimeout();
+    set_timeout();
     _smutex.unlock();
 
     return rssi;
@@ -370,7 +370,7 @@ int ESP8266::scan(WiFiAccessPoint *res, unsigned limit)
     nsapi_wifi_ap_t ap;
 
     _smutex.lock();
-    setTimeout(ESP8266_CONNECT_TIMEOUT);
+    set_timeout(ESP8266_CONNECT_TIMEOUT);
 
     if (!_parser.send("AT+CWLAP")) {
         _smutex.unlock();
@@ -387,7 +387,7 @@ int ESP8266::scan(WiFiAccessPoint *res, unsigned limit)
             break;
         }
     }
-    setTimeout();
+    set_timeout();
     _smutex.unlock();
 
     return cnt;
@@ -491,7 +491,7 @@ nsapi_error_t ESP8266::send(int id, const void *data, uint32_t amount)
     //May take a second try if device is busy
     for (unsigned i = 0; i < 2; i++) {
         _smutex.lock();
-        setTimeout(ESP8266_SEND_TIMEOUT);
+        set_timeout(ESP8266_SEND_TIMEOUT);
         if (_parser.send("AT+CIPSEND=%d,%lu", id, amount)
             && _parser.recv(">")
             && _parser.write((char*)data, (int)amount) >= 0) {
@@ -502,7 +502,7 @@ nsapi_error_t ESP8266::send(int id, const void *data, uint32_t amount)
             _smutex.unlock();
             return NSAPI_ERROR_OK;
         }
-        setTimeout();
+        set_timeout();
         _smutex.unlock();
     }
 
@@ -566,11 +566,11 @@ void ESP8266::_packet_handler()
 }
 
 void ESP8266::process_oob(uint32_t timeout, bool all) {
-    setTimeout(timeout);
+    set_timeout(timeout);
     // Poll for inbound packets
     while (_parser.process_oob() && all) {
     }
-    setTimeout();
+    set_timeout();
 }
 
 int32_t ESP8266::_recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t timeout)
@@ -666,14 +666,14 @@ int32_t ESP8266::recv_tcp(int id, void *data, uint32_t amount, uint32_t timeout)
 int32_t ESP8266::recv_udp(int id, void *data, uint32_t amount, uint32_t timeout)
 {
     _smutex.lock();
-    setTimeout(timeout);
+    set_timeout(timeout);
 
     // No flow control, drain the USART receive register ASAP to avoid data overrun
     if (_serial_rts == NC) {
         process_oob(timeout, true);
     }
 
-    setTimeout();
+    set_timeout();
 
     // check if any packets are ready for us
     for (struct packet **p = &_packets; *p; p = &(*p)->next) {
@@ -758,7 +758,7 @@ bool ESP8266::close(int id)
     return false;
 }
 
-void ESP8266::setTimeout(uint32_t timeout_ms)
+void ESP8266::set_timeout(uint32_t timeout_ms)
 {
     _parser.set_timeout(timeout_ms);
 }
@@ -868,7 +868,7 @@ void ESP8266::_connection_status_handler()
     }
 }
 
-int8_t ESP8266::get_default_wifi_mode()
+int8_t ESP8266::default_wifi_mode()
 {
     int8_t mode;
 
@@ -894,7 +894,7 @@ bool ESP8266::set_default_wifi_mode(const int8_t mode)
     return done;
 }
 
-nsapi_connection_status_t ESP8266::get_connection_status() const
+nsapi_connection_status_t ESP8266::connection_status() const
 {
     return _connection_status;
 }

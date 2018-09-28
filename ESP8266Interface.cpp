@@ -50,7 +50,7 @@ ESP8266Interface::ESP8266Interface()
     ap_sec = NSAPI_SECURITY_UNKNOWN;
 
     _esp.sigio(this, &ESP8266Interface::event);
-    _esp.setTimeout();
+    _esp.set_timeout();
 }
 
 // ESP8266Interface implementation
@@ -67,7 +67,7 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug, PinName r
     ap_sec = NSAPI_SECURITY_UNKNOWN;
 
     _esp.sigio(this, &ESP8266Interface::event);
-    _esp.setTimeout();
+    _esp.set_timeout();
 }
 
 int ESP8266Interface::connect(const char *ssid, const char *pass, nsapi_security_t security,
@@ -189,7 +189,7 @@ const char *ESP8266Interface::get_ip_address()
         return NULL;
     }
 
-    const char *ip_buff = _esp.getIPAddress();
+    const char *ip_buff = _esp.ip_addr();
     if(!ip_buff || std::strcmp(ip_buff, "0.0.0.0") == 0) {
         return NULL;
     }
@@ -199,22 +199,22 @@ const char *ESP8266Interface::get_ip_address()
 
 const char *ESP8266Interface::get_mac_address()
 {
-    return _esp.getMACAddress();
+    return _esp.mac_addr();
 }
 
 const char *ESP8266Interface::get_gateway()
 {
-    return _started ? _esp.getGateway() : NULL;
+    return _started ? _esp.gateway() : NULL;
 }
 
 const char *ESP8266Interface::get_netmask()
 {
-    return _started ? _esp.getNetmask() : NULL;
+    return _started ? _esp.netmask() : NULL;
 }
 
 int8_t ESP8266Interface::get_rssi()
 {
-    return _started ? _esp.getRSSI() : 0;
+    return _started ? _esp.rssi() : 0;
 }
 
 int ESP8266Interface::scan(WiFiAccessPoint *res, unsigned count)
@@ -256,7 +256,7 @@ bool ESP8266Interface::_disable_default_softap()
 {
     static int disabled = false;
 
-    if (disabled || _esp.get_default_wifi_mode() == ESP8266::WIFIMODE_STATION) {
+    if (disabled || _esp.default_wifi_mode() == ESP8266::WIFIMODE_STATION) {
         disabled = true;
         return true;
     }
@@ -586,7 +586,7 @@ void ESP8266Interface::attach(mbed::Callback<void(nsapi_event_t, intptr_t)> stat
 
 nsapi_connection_status_t ESP8266Interface::get_connection_status() const
 {
-    return _esp.get_connection_status();
+    return _esp.connection_status();
 }
 
 #if MBED_CONF_ESP8266_PROVIDE_DEFAULT
