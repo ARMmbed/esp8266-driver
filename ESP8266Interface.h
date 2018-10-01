@@ -40,7 +40,7 @@ public:
      * @param rx        RX pin
      * @param debug     Enable debugging
      */
-    ESP8266Interface(PinName tx, PinName rx, bool debug=false, PinName rts=NC, PinName cts=NC);
+    ESP8266Interface(PinName tx, PinName rx, bool debug=false, PinName rts=MBED_CONF_ESP8266_RTS, PinName cts=MBED_CONF_ESP8266_CTS);
 
     /** Start the interface
      *
