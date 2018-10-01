@@ -254,18 +254,7 @@ bool ESP8266Interface::_get_firmware_ok()
 
 bool ESP8266Interface::_disable_default_softap()
 {
-    static int disabled = false;
-
-    if (disabled || _esp.default_wifi_mode() == ESP8266::WIFIMODE_STATION) {
-        disabled = true;
-        return true;
-    }
-    if (_esp.set_default_wifi_mode(ESP8266::WIFIMODE_STATION)) {
-        disabled = true;
-        return true;
-    }
-
-    return false;
+    return _esp.set_default_wifi_mode(ESP8266::WIFIMODE_STATION);
 }
 
 nsapi_error_t ESP8266Interface::_init(void)
