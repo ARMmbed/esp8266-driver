@@ -294,11 +294,23 @@ public:
     }
 
     /**
-    * Attach a function to call whenever network state has changed
+    * Attach a function to call whenever network state has changed. Driver external
     *
     * @param func A pointer to a void function, or 0 to set as none
     */
     void attach(mbed::Callback<void(nsapi_event_t, intptr_t)> status_cb);
+
+    /**
+    * Attach a function to call whenever network state has changed. Driver internal
+    *
+    * @param func A pointer to a void function, or 0 to set as none
+    */
+    void attach_int(mbed::Callback<void()> status_cb);
+
+    template <typename T, typename M>
+    void attach_int(T *obj, M method) {
+        attach_int(Callback<void()>(obj, method));
+    }
 
     /**
      * Read default Wifi mode from flash
@@ -412,7 +424,8 @@ private:
 
     // Connection state reporting
     nsapi_connection_status_t _connection_status;
-    Callback<void(nsapi_event_t, intptr_t)> _connection_status_cb;
+    Callback<void(nsapi_event_t, intptr_t)> _connection_status_cb; // Application registered
+    Callback<void()> _conn_state_drv_cb; // ESP8266Interface registered
 };
 
 #endif

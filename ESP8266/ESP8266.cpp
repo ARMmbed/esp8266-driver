@@ -238,9 +238,6 @@ nsapi_error_t ESP8266::connect(const char *ap, const char *passPhrase)
 {
     _smutex.lock();
     set_timeout(ESP8266_CONNECT_TIMEOUT);
-    _connection_status = NSAPI_STATUS_CONNECTING;
-    if(_connection_status_cb)
-        _connection_status_cb(NSAPI_EVENT_CONNECTION_STATUS_CHANGE, _connection_status);
 
     _parser.send("AT+CWJAP_CUR=\"%s\",\"%s\"", ap, passPhrase);
     if (!_parser.recv("OK\n")) {
@@ -783,6 +780,11 @@ void ESP8266::attach(mbed::Callback<void(nsapi_event_t, intptr_t)> status_cb)
     _connection_status_cb = status_cb;
 }
 
+void ESP8266::attach_int(mbed::Callback<void()> status_cb)
+{
+    _conn_state_drv_cb = status_cb;
+}
+
 bool ESP8266::_recv_ap(nsapi_wifi_ap_t *ap)
 {
     int sec;
@@ -856,16 +858,28 @@ void ESP8266::_oob_connection_status()
 {
     char status[13];
     if (_parser.recv("%12[^\"]\n", status)) {
-        if (strcmp(status, "GOT IP\n") == 0)
+        if (strcmp(status, "GOT IP\n") == 0) {
             _connection_status = NSAPI_STATUS_GLOBAL_UP;
-        else if (strcmp(status, "DISCONNECT\n") == 0)
+        } else if (strcmp(status, "DISCONNECT\n") == 0) {
             _connection_status = NSAPI_STATUS_DISCONNECTED;
-        else
-            return;
-
-        if(_connection_status_cb)
-            _connection_status_cb(NSAPI_EVENT_CONNECTION_STATUS_CHANGE, _connection_status);
+        } else if (strcmp(status, "CONNECTED\n") == 0) {
+            _connection_status = NSAPI_STATUS_CONNECTING;
+        } else {
+            MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_EBADMSG), \
+                    "ESP8266::_oob_connection_status: invalid AT cmd\n");
+        }
+    } else {
+        MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_ENOMSG), \
+                "ESP8266::_oob_connection_status: network status timed out\n");
     }
+
+    //debug("ESP8266::_oob_connection_status: network state changed to WIFI \"%s\" (%d)\n", status, _connection_status);
+
+    if(_connection_status_cb) {
+        _connection_status_cb(NSAPI_EVENT_CONNECTION_STATUS_CHANGE, _connection_status);
+    }
+
+    _conn_state_drv_cb();
 }
 
 int8_t ESP8266::default_wifi_mode()

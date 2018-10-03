@@ -333,6 +333,7 @@ private:
 
     bool _disable_default_softap();
     void event();
+    void update_conn_state_cb();
     bool _get_firmware_ok();
     nsapi_error_t _init(void);
     nsapi_error_t _startup(const int8_t wifi_mode);
