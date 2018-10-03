@@ -51,6 +51,7 @@ ESP8266Interface::ESP8266Interface()
 
     _esp.sigio(this, &ESP8266Interface::event);
     _esp.set_timeout();
+    _esp.attach_int(this, &ESP8266Interface::update_conn_state_cb);
 }
 
 // ESP8266Interface implementation
@@ -68,6 +69,7 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug, PinName r
 
     _esp.sigio(this, &ESP8266Interface::event);
     _esp.set_timeout();
+    _esp.attach_int(this, &ESP8266Interface::update_conn_state_cb);
 }
 
 int ESP8266Interface::connect(const char *ssid, const char *pass, nsapi_security_t security,
@@ -586,3 +588,23 @@ WiFiInterface *WiFiInterface::get_default_instance() {
 }
 
 #endif
+
+void ESP8266Interface::update_conn_state_cb()
+{
+    switch(_esp.connection_status()) {
+        // Doesn't require changes
+        case NSAPI_STATUS_CONNECTING:
+        case NSAPI_STATUS_GLOBAL_UP:
+            break;
+        // Start from scratch if connection drops/is dropped
+        case NSAPI_STATUS_DISCONNECTED:
+            _started = false;
+            _initialized = false;
+            break;
+        // Handled on AT layer
+        case NSAPI_STATUS_LOCAL_UP:
+        case NSAPI_STATUS_ERROR_UNSUPPORTED:
+        default:
+            break;
+    }
+}
