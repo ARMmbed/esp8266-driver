@@ -396,6 +396,7 @@ private:
     void _oob_socket4_closed();
     void _oob_connection_status();
     void _oob_socket_close_err();
+    void _oob_watchdog_reset();
 
     // OOB state variables
     int _connect_error;
