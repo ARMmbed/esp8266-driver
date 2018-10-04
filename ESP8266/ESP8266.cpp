@@ -739,7 +739,6 @@ bool ESP8266::close(int id)
                     _clear_socket_packets(id);
                     _smutex.unlock();
                     // ESP8266 has a habit that it might close a socket on its own.
-                    //debug("ESP8266: socket %d already closed when calling close\n", id);
                     return true;
                 }
             } else {
@@ -872,8 +871,6 @@ void ESP8266::_oob_connection_status()
         MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_ENOMSG), \
                 "ESP8266::_oob_connection_status: network status timed out\n");
     }
-
-    //debug("ESP8266::_oob_connection_status: network state changed to WIFI \"%s\" (%d)\n", status, _connection_status);
 
     if(_connection_status_cb) {
         _connection_status_cb(NSAPI_EVENT_CONNECTION_STATUS_CHANGE, _connection_status);
