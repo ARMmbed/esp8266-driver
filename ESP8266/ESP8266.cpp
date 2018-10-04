@@ -60,6 +60,12 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
     _parser.oob("UNLINK", callback(this, &ESP8266::_oob_socket_close_err));
     _parser.oob("ALREADY CONNECTED", callback(this, &ESP8266::_oob_conn_already));
     _parser.oob("ERROR", callback(this, &ESP8266::_oob_err));
+    // Don't expect to find anything about the watchdog reset in official documentation
+    //https://techtutorialsx.com/2017/01/21/esp8266-watchdog-functions/
+    _parser.oob("wdt reset", callback(this, &ESP8266::_oob_watchdog_reset));
+    // Don't see a reason to make distiction between software(Software WDT reset) and hardware(wdt reset) watchdog treatment
+    //https://github.com/esp8266/Arduino/blob/4897e0006b5b0123a2fa31f67b14a3fff65ce561/doc/faq/a02-my-esp-crashes.md#watchdog
+    _parser.oob("Soft WDT reset", callback(this, &ESP8266::_oob_watchdog_reset));
 
     for(int i= 0; i < SOCKET_COUNT; i++) {
         _sock_i[i].open = false;
@@ -818,6 +824,16 @@ bool ESP8266::_recv_ap(nsapi_wifi_ap_t *ap)
     ap->security = sec < 5 ? (nsapi_security_t)sec : NSAPI_SECURITY_UNKNOWN;
 
     return ret;
+}
+
+void ESP8266::_oob_watchdog_reset()
+{
+    for (int i = 0; i < SOCKET_COUNT; i++) {
+        _sock_i[i].open = false;
+    }
+
+    _conn_status = NSAPI_STATUS_DISCONNECTED;
+    _conn_stat_cb();
 }
 
 void ESP8266::_oob_connect_err()
