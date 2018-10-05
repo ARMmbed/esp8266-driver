@@ -33,11 +33,11 @@ Least one is expected to check are the following configuration parameters
     "config": {
         "tx": {
             "help": "TX pin for serial connection",
-            "value": "D1" <- Arduino assumed, adjust based on your board
+            "value": null <- 'D1' by default if Arduino, adjust based on your board
         },
         "rx": {
             "help": "RX pin for serial connection",
-            "value": "D0" <- Arduino assumed, adjust based on your board
+            "value": null <- 'D0' by default if Arduino, adjust based on your board
         },
         "provide-default": {
             "help": "Provide default WifiInterface. [true/false]",
