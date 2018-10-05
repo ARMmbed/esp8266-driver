@@ -2,23 +2,23 @@
     "name": "esp8266",
     "config": {
         "tx": {
-            "help": "TX pin for serial connection",
-            "value": "D1"
+            "help": "TX pin for serial connection. D1 assumed if Arduino Form Factor(AFF), needs to be set/overwritten otherwise",
+            "value": null
         },
         "rx": {
-            "help": "RX pin for serial connection",
-            "value": "D0"
+            "help": "RX pin for serial connection. D0 assumed if Arduino Form Factor(AFF), needs to be set/overwritten otherwise",
+            "value": null
         },
         "rts": {
-            "help": "RTS pin for serial connection",
-            "value": "NC"
+            "help": "RTS pin for serial connection, defaults to Not Connected(NC)",
+            "value": null
         },
         "cts": {
-            "help": "CTS pin for serial connection",
-            "value": "NC"
+            "help": "CTS pin for serial connection, defaults to Not Connected(NC)",
+            "value": null
         },
         "debug": {
-            "help": "Enable debug logs",
+            "help": "Enable debug logs. [true/false]",
             "value": false
         },
         "provide-default": {
@@ -42,10 +42,6 @@
         "NUCLEO_F411RE": {
             "tx": "D8",
             "rx": "D2"
-        },
-        "NUCLEO_F429ZI": {
-            "rts": "NC",
-            "cts": "NC"
         }
     }
 }

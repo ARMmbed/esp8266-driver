@@ -20,23 +20,29 @@
 #include "mbed_debug.h"
 #include "nsapi_types.h"
 
-
-#ifndef MBED_CONF_ESP8266_TX
 #ifdef TARGET_FF_ARDUINO
+#ifndef MBED_CONF_ESP8266_TX
 #define MBED_CONF_ESP8266_TX D1
-#else
-#define MBED_CONF_ESP8266_TX NC
-#endif
 #endif
 
 #ifndef MBED_CONF_ESP8266_RX
-#ifdef TARGET_FF_ARDUINO
 #define MBED_CONF_ESP8266_RX D0
-#else
-#define MBED_CONF_ESP8266_RX NC
 #endif
+#endif /* TARGET_FF_ARDUINO */
+
+#ifndef MBED_CONF_ESP8266_DEBUG
+#define MBED_CONF_ESP8266_DEBUG false
 #endif
 
+#ifndef MBED_CONF_ESP8266_RTS
+#define MBED_CONF_ESP8266_RTS NC
+#endif
+
+#ifndef MBED_CONF_ESP8266_CTS
+#define MBED_CONF_ESP8266_CTS NC
+#endif
+
+#if defined MBED_CONF_ESP8266_TX && defined MBED_CONF_ESP8266_RX
 ESP8266Interface::ESP8266Interface()
     : _esp(MBED_CONF_ESP8266_TX, MBED_CONF_ESP8266_RX, MBED_CONF_ESP8266_DEBUG, MBED_CONF_ESP8266_RTS, MBED_CONF_ESP8266_CTS),
       _initialized(false),
@@ -52,6 +58,7 @@ ESP8266Interface::ESP8266Interface()
     _esp.sigio(this, &ESP8266Interface::event);
     _esp.set_timeout();
 }
+#endif
 
 // ESP8266Interface implementation
 ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
