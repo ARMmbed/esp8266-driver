@@ -387,7 +387,7 @@ private:
     // OOB message handlers
     void _oob_packet_hdlr();
     void _oob_connect_err();
-    void _oob_cipstart_already();
+    void _oob_conn_already();
     void _oob_socket0_closed();
     void _oob_socket1_closed();
     void _oob_socket2_closed();
@@ -416,7 +416,7 @@ private:
     struct _sock_info _sock_i[SOCKET_COUNT];
 
     // Connection state reporting
-    nsapi_connection_status_t _connection_status;
+    nsapi_connection_status_t _conn_status;
     Callback<void()> _conn_stat_cb; // ESP8266Interface registered
 };
 

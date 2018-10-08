@@ -320,6 +320,7 @@ protected:
 private:
     // AT layer
     ESP8266 _esp;
+    void update_conn_state_cb();
 
     // Credentials
     static const int ESP8266_SSID_MAX_LENGTH = 32; /* 32 is what 802.11 defines as longest possible name */
@@ -353,9 +354,6 @@ private:
     // Connection state reporting to application
     nsapi_connection_status_t _conn_stat;
     Callback<void(nsapi_event_t, intptr_t)> _conn_stat_cb;
-
-    // Connection state from AT layer
-    void update_conn_state_cb();
 };
 
 #endif
