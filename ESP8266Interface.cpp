@@ -46,14 +46,14 @@
 ESP8266Interface::ESP8266Interface()
     : _esp(MBED_CONF_ESP8266_TX, MBED_CONF_ESP8266_RX, MBED_CONF_ESP8266_DEBUG, MBED_CONF_ESP8266_RTS, MBED_CONF_ESP8266_CTS),
       _initialized(false),
-      _started(false)
+      _started(false),
+      _ap_sec(NSAPI_SECURITY_UNKNOWN)
 {
     memset(_ids, 0, sizeof(_ids));
     memset(_cbs, 0, sizeof(_cbs));
     memset(ap_ssid, 0, sizeof(ap_ssid));
     memset(ap_pass, 0, sizeof(ap_pass));
     memset(_local_ports, 0, sizeof(_local_ports));
-    ap_sec = NSAPI_SECURITY_UNKNOWN;
 
     _esp.sigio(this, &ESP8266Interface::event);
     _esp.set_timeout();
@@ -65,14 +65,14 @@ ESP8266Interface::ESP8266Interface()
 ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
     : _esp(tx, rx, debug, rts, cts),
       _initialized(false),
-      _started(false)
+      _started(false),
+      _ap_sec(NSAPI_SECURITY_UNKNOWN)
 {
     memset(_ids, 0, sizeof(_ids));
     memset(_cbs, 0, sizeof(_cbs));
     memset(ap_ssid, 0, sizeof(ap_ssid));
     memset(ap_pass, 0, sizeof(ap_pass));
     memset(_local_ports, 0, sizeof(_local_ports));
-    ap_sec = NSAPI_SECURITY_UNKNOWN;
 
     _esp.sigio(this, &ESP8266Interface::event);
     _esp.set_timeout();
@@ -102,7 +102,7 @@ int ESP8266Interface::connect()
         return NSAPI_ERROR_NO_SSID;
     }
 
-    if (ap_sec != NSAPI_SECURITY_NONE) {
+    if (_ap_sec != NSAPI_SECURITY_NONE) {
         if (strlen(ap_pass) < ESP8266_PASSPHRASE_MIN_LENGTH) {
             return NSAPI_ERROR_PARAMETER;
         }
@@ -141,7 +141,7 @@ int ESP8266Interface::connect()
 
 int ESP8266Interface::set_credentials(const char *ssid, const char *pass, nsapi_security_t security)
 {
-    ap_sec = security;
+    _ap_sec = security;
 
     if (!ssid) {
         return NSAPI_ERROR_PARAMETER;
@@ -157,7 +157,7 @@ int ESP8266Interface::set_credentials(const char *ssid, const char *pass, nsapi_
         return NSAPI_ERROR_PARAMETER;
     }
 
-    if (ap_sec != NSAPI_SECURITY_NONE) {
+    if (_ap_sec != NSAPI_SECURITY_NONE) {
 
         if (!pass) {
             return NSAPI_ERROR_PARAMETER;
