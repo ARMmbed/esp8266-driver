@@ -45,9 +45,9 @@
 #if defined MBED_CONF_ESP8266_TX && defined MBED_CONF_ESP8266_RX
 ESP8266Interface::ESP8266Interface()
     : _esp(MBED_CONF_ESP8266_TX, MBED_CONF_ESP8266_RX, MBED_CONF_ESP8266_DEBUG, MBED_CONF_ESP8266_RTS, MBED_CONF_ESP8266_CTS),
+      _ap_sec(NSAPI_SECURITY_UNKNOWN),
       _initialized(false),
       _started(false),
-      _ap_sec(NSAPI_SECURITY_UNKNOWN),
       _conn_stat(NSAPI_STATUS_DISCONNECTED),
       _conn_stat_cb(NULL)
 {
@@ -69,9 +69,9 @@ ESP8266Interface::ESP8266Interface()
 // ESP8266Interface implementation
 ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
     : _esp(tx, rx, debug, rts, cts),
+      _ap_sec(NSAPI_SECURITY_UNKNOWN),
       _initialized(false),
       _started(false),
-      _ap_sec(NSAPI_SECURITY_UNKNOWN),
       _conn_stat(NSAPI_STATUS_DISCONNECTED),
       _conn_stat_cb(NULL)
 {
@@ -271,11 +271,6 @@ bool ESP8266Interface::_get_firmware_ok()
     return true;
 }
 
-bool ESP8266Interface::_disable_default_softap()
-{
-    return _esp.set_default_wifi_mode(ESP8266::WIFIMODE_STATION);
-}
-
 nsapi_error_t ESP8266Interface::_init(void)
 {
     if (!_initialized) {
@@ -294,7 +289,7 @@ nsapi_error_t ESP8266Interface::_init(void)
         if (!_get_firmware_ok()) {
             return NSAPI_ERROR_DEVICE_ERROR;
         }
-        if (!_disable_default_softap()) {
+        if (!_esp.set_default_wifi_mode(ESP8266::WIFIMODE_STATION)) {
             return NSAPI_ERROR_DEVICE_ERROR;
         }
         if (!_esp.cond_enable_tcp_passive_mode()) {
