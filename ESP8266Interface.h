@@ -329,7 +329,6 @@ private:
 
     char ap_ssid[ESP8266_SSID_MAX_LENGTH + 1]; /* 32 is what 802.11 defines as longest possible name; +1 for the \0 */
     nsapi_security_t _ap_sec;
-    uint8_t ap_ch;
     char ap_pass[ESP8266_PASSPHRASE_MAX_LENGTH + 1];
     uint16_t _local_ports[ESP8266_SOCKET_COUNT];
 
