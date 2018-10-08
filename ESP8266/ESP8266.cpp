@@ -40,7 +40,7 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
       _fail(false),
       _sock_already(false),
       _closed(false),
-      _connection_status(NSAPI_STATUS_DISCONNECTED)
+      _conn_status(NSAPI_STATUS_DISCONNECTED)
 {
     _serial.set_baud( ESP8266_DEFAULT_BAUD_RATE );
     _parser.debug_on(debug);
@@ -58,7 +58,7 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
     _parser.oob("+CWJAP:", callback(this, &ESP8266::_oob_connect_err));
     _parser.oob("WIFI ", callback(this, &ESP8266::_oob_connection_status));
     _parser.oob("UNLINK", callback(this, &ESP8266::_oob_socket_close_err));
-    _parser.oob("ALREADY CONNECTED", callback(this, &ESP8266::_oob_cipstart_already));
+    _parser.oob("ALREADY CONNECTED", callback(this, &ESP8266::_oob_conn_already));
 
     for(int i= 0; i < SOCKET_COUNT; i++) {
         _sock_i[i].open = false;
@@ -809,7 +809,7 @@ void ESP8266::_oob_connect_err()
 }
 
 
-void ESP8266::_oob_cipstart_already()
+void ESP8266::_oob_conn_already()
 {
     _sock_already = true;
     _parser.abort();
@@ -853,11 +853,11 @@ void ESP8266::_oob_connection_status()
     char status[13];
     if (_parser.recv("%12[^\"]\n", status)) {
         if (strcmp(status, "GOT IP\n") == 0) {
-            _connection_status = NSAPI_STATUS_GLOBAL_UP;
+            _conn_status = NSAPI_STATUS_GLOBAL_UP;
         } else if (strcmp(status, "DISCONNECT\n") == 0) {
-            _connection_status = NSAPI_STATUS_DISCONNECTED;
+            _conn_status = NSAPI_STATUS_DISCONNECTED;
         } else if (strcmp(status, "CONNECTED\n") == 0) {
-            _connection_status = NSAPI_STATUS_CONNECTING;
+            _conn_status = NSAPI_STATUS_CONNECTING;
         } else {
             MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_EBADMSG), \
                     "ESP8266::_oob_connection_status: invalid AT cmd\n");
@@ -899,5 +899,5 @@ bool ESP8266::set_default_wifi_mode(const int8_t mode)
 
 nsapi_connection_status_t ESP8266::connection_status() const
 {
-    return _connection_status;
+    return _conn_status;
 }
