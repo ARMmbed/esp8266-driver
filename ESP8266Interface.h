@@ -343,6 +343,10 @@ private:
         void (*callback)(void *);
         void *data;
     } _cbs[ESP8266_SOCKET_COUNT];
+
+    // Connection state reporting
+    nsapi_connection_status_t _conn_stat;
+    Callback<void(nsapi_event_t, intptr_t)> _conn_stat_cb; // Application registered
 };
 
 #endif

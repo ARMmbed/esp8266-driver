@@ -774,14 +774,9 @@ void ESP8266::sigio(Callback<void()> func)
     _serial.sigio(func);
 }
 
-void ESP8266::attach(mbed::Callback<void(nsapi_event_t, intptr_t)> status_cb)
+void ESP8266::attach(Callback<void()> status_cb)
 {
-    _connection_status_cb = status_cb;
-}
-
-void ESP8266::attach_int(mbed::Callback<void()> status_cb)
-{
-    _conn_state_drv_cb = status_cb;
+    _conn_stat_cb = status_cb;
 }
 
 bool ESP8266::_recv_ap(nsapi_wifi_ap_t *ap)
@@ -872,11 +867,8 @@ void ESP8266::_oob_connection_status()
                 "ESP8266::_oob_connection_status: network status timed out\n");
     }
 
-    if(_connection_status_cb) {
-        _connection_status_cb(NSAPI_EVENT_CONNECTION_STATUS_CHANGE, _connection_status);
-    }
-
-    _conn_state_drv_cb();
+    MBED_ASSERT(_conn_stat_cb);
+    _conn_stat_cb();
 }
 
 int8_t ESP8266::default_wifi_mode()
