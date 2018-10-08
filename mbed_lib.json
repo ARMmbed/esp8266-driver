@@ -2,19 +2,19 @@
     "name": "esp8266",
     "config": {
         "tx": {
-            "help": "TX pin for serial connection. D1 assumed if Arduino Form Factor(AFF), needs to be set/overwritten otherwise",
+            "help": "TX pin for serial connection. D1 assumed if Arduino Form Factor, needs to be set/overwritten otherwise",
             "value": null
         },
         "rx": {
-            "help": "RX pin for serial connection. D0 assumed if Arduino Form Factor(AFF), needs to be set/overwritten otherwise",
+            "help": "RX pin for serial connection. D0 assumed if Arduino Form Factor, needs to be set/overwritten otherwise",
             "value": null
         },
         "rts": {
-            "help": "RTS pin for serial connection, defaults to Not Connected(NC)",
+            "help": "RTS pin for serial connection, defaults to Not Connected",
             "value": null
         },
         "cts": {
-            "help": "CTS pin for serial connection, defaults to Not Connected(NC)",
+            "help": "CTS pin for serial connection, defaults to Not Connected",
             "value": null
         },
         "debug": {
