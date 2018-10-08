@@ -318,11 +318,16 @@ protected:
     }
 
 private:
+    // AT layer
+    ESP8266 _esp;
+
+    // Credentials
     static const int ESP8266_SSID_MAX_LENGTH = 32; /* 32 is what 802.11 defines as longest possible name */
+    char ap_ssid[ESP8266_SSID_MAX_LENGTH + 1]; /* The longest possible name; +1 for the \0 */
     static const int ESP8266_PASSPHRASE_MAX_LENGTH = 63; /* The longest allowed passphrase */
     static const int ESP8266_PASSPHRASE_MIN_LENGTH = 8; /* The shortest allowed passphrase */
-
-    ESP8266 _esp;
+    char ap_pass[ESP8266_PASSPHRASE_MAX_LENGTH + 1]; /* The longest possible passphrase; +1 for the \0 */
+    nsapi_security_t _ap_sec;
 
     // Drivers's socket info
     struct _sock_info {
@@ -331,28 +336,26 @@ private:
     };
     struct _sock_info _sock_i[ESP8266_SOCKET_COUNT];
 
+    // Driver's state
     int _initialized;
-    int _started;
-
-    char ap_ssid[ESP8266_SSID_MAX_LENGTH + 1]; /* 32 is what 802.11 defines as longest possible name; +1 for the \0 */
-    nsapi_security_t _ap_sec;
-    char ap_pass[ESP8266_PASSPHRASE_MAX_LENGTH + 1];
-
-    bool _disable_default_softap();
-    void event();
-    void update_conn_state_cb();
     bool _get_firmware_ok();
     nsapi_error_t _init(void);
+    int _started;
     nsapi_error_t _startup(const int8_t wifi_mode);
 
+    //sigio
     struct {
         void (*callback)(void *);
         void *data;
     } _cbs[ESP8266_SOCKET_COUNT];
+    void event();
 
-    // Connection state reporting
+    // Connection state reporting to application
     nsapi_connection_status_t _conn_stat;
-    Callback<void(nsapi_event_t, intptr_t)> _conn_stat_cb; // Application registered
+    Callback<void(nsapi_event_t, intptr_t)> _conn_stat_cb;
+
+    // Connection state from AT layer
+    void update_conn_state_cb();
 };
 
 #endif
