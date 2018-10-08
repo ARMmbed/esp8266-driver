@@ -51,15 +51,18 @@ ESP8266Interface::ESP8266Interface()
       _conn_stat(NSAPI_STATUS_DISCONNECTED),
       _conn_stat_cb(NULL)
 {
-    memset(_ids, 0, sizeof(_ids));
     memset(_cbs, 0, sizeof(_cbs));
     memset(ap_ssid, 0, sizeof(ap_ssid));
     memset(ap_pass, 0, sizeof(ap_pass));
-    memset(_local_ports, 0, sizeof(_local_ports));
 
     _esp.sigio(this, &ESP8266Interface::event);
     _esp.set_timeout();
     _esp.attach(this, &ESP8266Interface::update_conn_state_cb);
+
+    for(int i= 0; i < ESP8266_SOCKET_COUNT; i++) {
+        _sock_i[i].open = false;
+        _sock_i[i].sport = -1;
+    }
 }
 #endif
 
@@ -72,15 +75,18 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug, PinName r
       _conn_stat(NSAPI_STATUS_DISCONNECTED),
       _conn_stat_cb(NULL)
 {
-    memset(_ids, 0, sizeof(_ids));
     memset(_cbs, 0, sizeof(_cbs));
     memset(ap_ssid, 0, sizeof(ap_ssid));
     memset(ap_pass, 0, sizeof(ap_pass));
-    memset(_local_ports, 0, sizeof(_local_ports));
 
     _esp.sigio(this, &ESP8266Interface::event);
     _esp.set_timeout();
     _esp.attach(this, &ESP8266Interface::update_conn_state_cb);
+
+    for(int i= 0; i < ESP8266_SOCKET_COUNT; i++) {
+        _sock_i[i].open = false;
+        _sock_i[i].sport = -1;
+    }
 }
 
 int ESP8266Interface::connect(const char *ssid, const char *pass, nsapi_security_t security,
@@ -324,9 +330,9 @@ int ESP8266Interface::socket_open(void **handle, nsapi_protocol_t proto)
     int id = -1;
 
     for (int i = 0; i < ESP8266_SOCKET_COUNT; i++) {
-        if (!_ids[i]) {
+        if (!_sock_i[i].open) {
             id = i;
-            _ids[i] = true;
+            _sock_i[i].open = true;
             break;
         }
     }
@@ -362,8 +368,8 @@ int ESP8266Interface::socket_close(void *handle)
     }
 
     socket->connected = false;
-    _ids[socket->id] = false;
-    _local_ports[socket->id] = 0;
+    _sock_i[socket->id].open = false;
+    _sock_i[socket->id].sport = -1;
     delete socket;
     return err;
 }
@@ -382,13 +388,13 @@ int ESP8266Interface::socket_bind(void *handle, const SocketAddress &address)
         }
 
         for(int id = 0; id < ESP8266_SOCKET_COUNT; id++) {
-            if(_local_ports[id] == address.get_port() && id != socket->id) { // Port already reserved by another socket
+            if(_sock_i[id].sport == address.get_port() && id != socket->id) { // Port already reserved by another socket
                 return NSAPI_ERROR_PARAMETER;
             } else if (id == socket->id && socket->connected) {
                 return NSAPI_ERROR_PARAMETER;
             }
         }
-        _local_ports[socket->id] = address.get_port();
+        _sock_i[socket->id].sport = address.get_port();
         return 0;
     }
 
@@ -410,7 +416,7 @@ int ESP8266Interface::socket_connect(void *handle, const SocketAddress &addr)
     }
 
     if (socket->proto == NSAPI_UDP) {
-        ret = _esp.open_udp(socket->id, addr.get_ip_address(), addr.get_port(), _local_ports[socket->id]);
+        ret = _esp.open_udp(socket->id, addr.get_ip_address(), addr.get_port(), _sock_i[socket->id].sport);
     } else {
         ret = _esp.open_tcp(socket->id, addr.get_ip_address(), addr.get_port(), socket->keepalive);
     }
