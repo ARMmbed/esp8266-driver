@@ -323,14 +323,20 @@ private:
     static const int ESP8266_PASSPHRASE_MIN_LENGTH = 8; /* The shortest allowed passphrase */
 
     ESP8266 _esp;
-    bool _ids[ESP8266_SOCKET_COUNT];
+
+    // Drivers's socket info
+    struct _sock_info {
+        bool open;
+        uint16_t sport;
+    };
+    struct _sock_info _sock_i[ESP8266_SOCKET_COUNT];
+
     int _initialized;
     int _started;
 
     char ap_ssid[ESP8266_SSID_MAX_LENGTH + 1]; /* 32 is what 802.11 defines as longest possible name; +1 for the \0 */
     nsapi_security_t _ap_sec;
     char ap_pass[ESP8266_PASSPHRASE_MAX_LENGTH + 1];
-    uint16_t _local_ports[ESP8266_SOCKET_COUNT];
 
     bool _disable_default_softap();
     void event();
