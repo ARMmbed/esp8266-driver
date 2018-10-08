@@ -47,7 +47,9 @@ ESP8266Interface::ESP8266Interface()
     : _esp(MBED_CONF_ESP8266_TX, MBED_CONF_ESP8266_RX, MBED_CONF_ESP8266_DEBUG, MBED_CONF_ESP8266_RTS, MBED_CONF_ESP8266_CTS),
       _initialized(false),
       _started(false),
-      _ap_sec(NSAPI_SECURITY_UNKNOWN)
+      _ap_sec(NSAPI_SECURITY_UNKNOWN),
+      _conn_stat(NSAPI_STATUS_DISCONNECTED),
+      _conn_stat_cb(NULL)
 {
     memset(_ids, 0, sizeof(_ids));
     memset(_cbs, 0, sizeof(_cbs));
@@ -57,7 +59,7 @@ ESP8266Interface::ESP8266Interface()
 
     _esp.sigio(this, &ESP8266Interface::event);
     _esp.set_timeout();
-    _esp.attach_int(this, &ESP8266Interface::update_conn_state_cb);
+    _esp.attach(this, &ESP8266Interface::update_conn_state_cb);
 }
 #endif
 
@@ -66,7 +68,9 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug, PinName r
     : _esp(tx, rx, debug, rts, cts),
       _initialized(false),
       _started(false),
-      _ap_sec(NSAPI_SECURITY_UNKNOWN)
+      _ap_sec(NSAPI_SECURITY_UNKNOWN),
+      _conn_stat(NSAPI_STATUS_DISCONNECTED),
+      _conn_stat_cb(NULL)
 {
     memset(_ids, 0, sizeof(_ids));
     memset(_cbs, 0, sizeof(_cbs));
@@ -76,7 +80,7 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug, PinName r
 
     _esp.sigio(this, &ESP8266Interface::event);
     _esp.set_timeout();
-    _esp.attach_int(this, &ESP8266Interface::update_conn_state_cb);
+    _esp.attach(this, &ESP8266Interface::update_conn_state_cb);
 }
 
 int ESP8266Interface::connect(const char *ssid, const char *pass, nsapi_security_t security,
@@ -579,12 +583,12 @@ void ESP8266Interface::event()
 
 void ESP8266Interface::attach(mbed::Callback<void(nsapi_event_t, intptr_t)> status_cb)
 {
-    _esp.attach(status_cb);
+    _conn_stat_cb = status_cb;
 }
 
 nsapi_connection_status_t ESP8266Interface::get_connection_status() const
 {
-    return _esp.connection_status();
+    return _conn_stat;
 }
 
 #if MBED_CONF_ESP8266_PROVIDE_DEFAULT
@@ -598,7 +602,9 @@ WiFiInterface *WiFiInterface::get_default_instance() {
 
 void ESP8266Interface::update_conn_state_cb()
 {
-    switch(_esp.connection_status()) {
+    _conn_stat = _esp.connection_status();
+
+    switch(_conn_stat) {
         // Doesn't require changes
         case NSAPI_STATUS_CONNECTING:
         case NSAPI_STATUS_GLOBAL_UP:
@@ -612,6 +618,11 @@ void ESP8266Interface::update_conn_state_cb()
         case NSAPI_STATUS_LOCAL_UP:
         case NSAPI_STATUS_ERROR_UNSUPPORTED:
         default:
-            break;
+            MBED_ASSERT(false);
+    }
+
+    // Inform upper layers
+    if (_conn_stat_cb) {
+        _conn_stat_cb(NSAPI_EVENT_CONNECTION_STATUS_CHANGE, _conn_stat);
     }
 }
