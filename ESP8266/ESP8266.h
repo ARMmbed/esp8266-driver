@@ -388,6 +388,7 @@ private:
     void _oob_packet_hdlr();
     void _oob_connect_err();
     void _oob_conn_already();
+    void _oob_err();
     void _oob_socket0_closed();
     void _oob_socket1_closed();
     void _oob_socket2_closed();
@@ -401,6 +402,7 @@ private:
     bool _fail;
     bool _sock_already;
     bool _closed;
+    bool _error;
 
     // Modem's address info
     char _ip_buffer[16];
