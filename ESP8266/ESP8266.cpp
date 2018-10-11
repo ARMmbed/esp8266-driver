@@ -59,6 +59,7 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
     _parser.oob("WIFI ", callback(this, &ESP8266::_oob_connection_status));
     _parser.oob("UNLINK", callback(this, &ESP8266::_oob_socket_close_err));
     _parser.oob("ALREADY CONNECTED", callback(this, &ESP8266::_oob_conn_already));
+    _parser.oob("ERROR", callback(this, &ESP8266::_oob_err));
 
     for(int i= 0; i < SOCKET_COUNT; i++) {
         _sock_i[i].open = false;
@@ -418,6 +419,10 @@ nsapi_error_t ESP8266::open_udp(int id, const char* addr, int port, int local_po
                                 "ESP8266::_open_udp: device refused to close socket");
                     }
                 }
+                if (_error) {
+                    _error = false;
+                    done = false;
+                }
                 continue;
             }
             _sock_i[id].open = true;
@@ -460,6 +465,10 @@ nsapi_error_t ESP8266::open_tcp(int id, const char* addr, int port, int keepaliv
                                 "ESP8266::_open_tcp: device refused to close socket");
                     }
                 }
+                if (_error) {
+                    _error = false;
+                    done = false;
+                }
                 continue;
             }
             _sock_i[id].open = true;
@@ -491,7 +500,8 @@ nsapi_error_t ESP8266::send(int id, const void *data, uint32_t amount)
         set_timeout(ESP8266_SEND_TIMEOUT);
         if (_parser.send("AT+CIPSEND=%d,%lu", id, amount)
             && _parser.recv(">")
-            && _parser.write((char*)data, (int)amount) >= 0) {
+            && _parser.write((char*)data, (int)amount) >= 0
+            && _parser.recv("SEND OK")) {
             // No flow control, data overrun is possible
             if (_serial_rts == NC) {
                 while (_parser.process_oob()); // Drain USART receive register
@@ -499,6 +509,10 @@ nsapi_error_t ESP8266::send(int id, const void *data, uint32_t amount)
             _smutex.unlock();
             return NSAPI_ERROR_OK;
         }
+        if (_error) {
+            _error = false;
+        }
+
         set_timeout();
         _smutex.unlock();
     }
@@ -824,12 +838,18 @@ void ESP8266::_oob_conn_already()
     _parser.abort();
 }
 
+void ESP8266::_oob_err()
+{
+    _error = true;
+    _parser.abort();
+}
+
 void ESP8266::_oob_socket_close_err()
 {
-    if (_parser.recv("ERROR\n")) {
-        _closed = true; // Not possible to pinpoint to a certain socket
-        _parser.abort();
+    if (_error) {
+        _error = false;
     }
+    _closed = true; // Not possible to pinpoint to a certain socket
 }
 
 void ESP8266::_oob_socket0_closed()
