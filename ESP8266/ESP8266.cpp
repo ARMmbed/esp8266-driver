@@ -575,6 +575,11 @@ int32_t ESP8266::_recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t
     int32_t len;
     int32_t ret = (int32_t)NSAPI_ERROR_WOULD_BLOCK;
 
+    // No flow control, drain the USART receive register ASAP to avoid data overrun
+    if (_serial_rts == NC) {
+        _process_oob(timeout, true);
+    }
+
     _smutex.lock();
 
     // NOTE: documentation v3.0 says '+CIPRECVDATA:<data_len>,' but it's not how the FW responds...
@@ -598,6 +603,10 @@ int32_t ESP8266::_recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t
         ret = done ? len : 0;
     }
 
+    // Flow control, read from USART receive register only when no more data is buffered, and as little as possible
+    if (_serial_rts != NC) {
+        _process_oob(timeout, false);
+    }
     _smutex.unlock();
     return ret;
 }
