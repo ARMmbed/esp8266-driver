@@ -18,6 +18,7 @@
 #define ESP8266_H
 
 #include "ATCmdParser.h"
+#include "Mutex.h"
 #include "nsapi_types.h"
 #include "rtos.h"
 
