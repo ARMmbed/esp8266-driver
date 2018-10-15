@@ -595,12 +595,12 @@ int32_t ESP8266::_recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t
     int32_t len;
     int32_t ret = (int32_t)NSAPI_ERROR_WOULD_BLOCK;
 
+    _smutex.lock();
+
     // No flow control, drain the USART receive register ASAP to avoid data overrun
     if (_serial_rts == NC) {
         _process_oob(timeout, true);
     }
-
-    _smutex.lock();
 
     // NOTE: documentation v3.0 says '+CIPRECVDATA:<data_len>,' but it's not how the FW responds...
     bool done = _parser.send("AT+CIPRECVDATA=%d,%lu", id, amount)
