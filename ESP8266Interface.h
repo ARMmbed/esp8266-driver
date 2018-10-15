@@ -18,8 +18,15 @@
 #define ESP8266_INTERFACE_H
 
 #include "mbed.h"
-#include "ESP8266.h"
 
+#include "Callback.h"
+#include "netsocket/nsapi_types.h"
+#include "netsocket/NetworkInterface.h"
+#include "netsocket/NetworkStack.h"
+#include "netsocket/WiFiAccessPoint.h"
+#include "netsocket/WiFiInterface.h"
+
+#include "ESP8266.h"
 
 #define ESP8266_SOCKET_COUNT 5
 
