@@ -19,6 +19,7 @@
 
 #include "mbed.h"
 
+#include "Thread.h"
 #include "Callback.h"
 #include "netsocket/nsapi_types.h"
 #include "netsocket/NetworkInterface.h"
@@ -361,6 +362,10 @@ private:
     // Connection state reporting to application
     nsapi_connection_status_t _conn_stat;
     Callback<void(nsapi_event_t, intptr_t)> _conn_stat_cb;
+
+    // Background OOB processing
+    rtos::Thread _oob_thread;
+    void bg_process_oob();
 };
 
 #endif

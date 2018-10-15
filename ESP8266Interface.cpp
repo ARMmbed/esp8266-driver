@@ -15,6 +15,7 @@
  */
 
 #include <cstring>
+#include "Callback.h"
 #include "ESP8266.h"
 #include "ESP8266Interface.h"
 #include "mbed_debug.h"
@@ -123,6 +124,10 @@ int ESP8266Interface::connect()
         return status;
     }
 
+    if (_oob_thread.get_state() == rtos::Thread::Deleted) {
+        _oob_thread.start(callback(this, &ESP8266Interface::bg_process_oob));
+    }
+
     if(get_ip_address()) {
         return NSAPI_ERROR_IS_CONNECTED;
     }
@@ -196,9 +201,6 @@ int ESP8266Interface::set_channel(uint8_t channel)
 
 int ESP8266Interface::disconnect()
 {
-    _started = false;
-    _initialized = false;
-
     return _esp.disconnect() ? NSAPI_ERROR_OK : NSAPI_ERROR_DEVICE_ERROR;
 }
 
@@ -625,5 +627,13 @@ void ESP8266Interface::update_conn_state_cb()
     // Inform upper layers
     if (_conn_stat_cb) {
         _conn_stat_cb(NSAPI_EVENT_CONNECTION_STATUS_CHANGE, _conn_stat);
+    }
+}
+
+void ESP8266Interface::bg_process_oob()
+{
+    for(;;) {
+        _esp.bg_process_oob(ESP8266_RECV_TIMEOUT, true);
+        wait_ms(ESP8266_RECV_TIMEOUT);
     }
 }

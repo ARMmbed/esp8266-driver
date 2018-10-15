@@ -590,6 +590,13 @@ void ESP8266::_process_oob(uint32_t timeout, bool all) {
     set_timeout();
 }
 
+void ESP8266::bg_process_oob(uint32_t timeout, bool all)
+{
+    _smutex.lock();
+    _process_oob(timeout, all);
+    _smutex.unlock();
+}
+
 int32_t ESP8266::_recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t timeout)
 {
     int32_t len;

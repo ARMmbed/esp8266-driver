@@ -343,6 +343,14 @@ public:
      */
     bool cond_enable_tcp_passive_mode();
 
+    /**
+     * For executing OOB processing on background
+     *
+     * @param timeout AT parser receive timeout
+     * @param if TRUE, process all OOBs instead of only one
+     */
+    void bg_process_oob(uint32_t timeout, bool all);
+
     static const int8_t WIFIMODE_STATION = 1;
     static const int8_t WIFIMODE_SOFTAP = 2;
     static const int8_t WIFIMODE_STATION_SOFTAP = 3;
