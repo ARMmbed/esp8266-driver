@@ -52,6 +52,11 @@ public:
      */
     ESP8266Interface(PinName tx, PinName rx, bool debug=false, PinName rts=NC, PinName cts=NC);
 
+    /**
+     * @brief ESP8266Interface default destructor
+     */
+    ~ESP8266Interface();
+
     /** Start the interface
      *
      *  Attempts to connect to a WiFi network. Requires ssid and passphrase to be set.
@@ -364,8 +369,11 @@ private:
     Callback<void(nsapi_event_t, intptr_t)> _conn_stat_cb;
 
     // Background OOB processing
-    rtos::Thread _oob_thread;
+    rtos::Thread *_oob_thr;
+    unsigned char *_oob_thr_sta;
+    bool _oob_thr_run;
     void bg_process_oob();
+    void start_bg_oob();
 };
 
 #endif

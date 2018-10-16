@@ -50,7 +50,9 @@ ESP8266Interface::ESP8266Interface()
       _initialized(false),
       _started(false),
       _conn_stat(NSAPI_STATUS_DISCONNECTED),
-      _conn_stat_cb(NULL)
+      _conn_stat_cb(NULL),
+      _oob_thr(NULL),
+      _oob_thr_sta(NULL)
 {
     memset(_cbs, 0, sizeof(_cbs));
     memset(ap_ssid, 0, sizeof(ap_ssid));
@@ -74,7 +76,10 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug, PinName r
       _initialized(false),
       _started(false),
       _conn_stat(NSAPI_STATUS_DISCONNECTED),
-      _conn_stat_cb(NULL)
+      _conn_stat_cb(NULL),
+      _oob_thr(NULL),
+      _oob_thr_sta(NULL),
+      _oob_thr_run(false)
 {
     memset(_cbs, 0, sizeof(_cbs));
     memset(ap_ssid, 0, sizeof(ap_ssid));
@@ -87,6 +92,19 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug, PinName r
     for(int i= 0; i < ESP8266_SOCKET_COUNT; i++) {
         _sock_i[i].open = false;
         _sock_i[i].sport = -1;
+    }
+}
+
+ESP8266Interface::~ESP8266Interface()
+{
+    _oob_thr_run = false;
+
+    if (_oob_thr) {
+        _oob_thr->join();
+        delete _oob_thr;
+    }
+    if (_oob_thr_sta) {
+        free (_oob_thr_sta);
     }
 }
 
@@ -103,6 +121,36 @@ int ESP8266Interface::connect(const char *ssid, const char *pass, nsapi_security
     }
 
     return connect();
+}
+
+void ESP8266Interface::start_bg_oob()
+{
+    static const uint32_t _stack_sz = 2048;
+
+    if (!_oob_thr_sta) {
+        _oob_thr_sta = (unsigned char*) (malloc(_stack_sz));
+    }
+    if (!_oob_thr_sta) {
+        MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_ENOMEM), \
+                "ESP8266::start_bg_oob: no memory");
+    }
+
+    if (!_oob_thr) {
+        _oob_thr = new Thread(osPriorityNormal,
+                              _stack_sz,
+                              _oob_thr_sta,
+                              "oob_proc");
+    }
+
+    if (!_oob_thr) {
+        MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_THREAD_CREATE_FAILED), \
+                "ESP8266::start_bg_oob: no thread");
+    }
+
+    if (_oob_thr->get_state() == rtos::Thread::Deleted) {
+        _oob_thr_run = true;
+        _oob_thr->start(callback(this, &ESP8266Interface::bg_process_oob));
+    }
 }
 
 int ESP8266Interface::connect()
@@ -124,9 +172,7 @@ int ESP8266Interface::connect()
         return status;
     }
 
-    if (_oob_thread.get_state() == rtos::Thread::Deleted) {
-        _oob_thread.start(callback(this, &ESP8266Interface::bg_process_oob));
-    }
+    start_bg_oob();
 
     if(get_ip_address()) {
         return NSAPI_ERROR_IS_CONNECTED;
@@ -632,8 +678,10 @@ void ESP8266Interface::update_conn_state_cb()
 
 void ESP8266Interface::bg_process_oob()
 {
-    for(;;) {
-        _esp.bg_process_oob(ESP8266_RECV_TIMEOUT, true);
+    while (_oob_thr_run) {
+        if (_initialized) {
+            _esp.bg_process_oob(ESP8266_RECV_TIMEOUT, true);
+        }
         wait_ms(ESP8266_RECV_TIMEOUT);
     }
 }
