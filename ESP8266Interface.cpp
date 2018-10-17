@@ -669,7 +669,9 @@ void ESP8266Interface::update_conn_state_cb()
         case NSAPI_STATUS_LOCAL_UP:
         case NSAPI_STATUS_ERROR_UNSUPPORTED:
         default:
-            MBED_ASSERT(false);
+            _started = false;
+            _initialized = false;
+            _conn_stat = NSAPI_STATUS_DISCONNECTED;
     }
 
     // Inform upper layers
