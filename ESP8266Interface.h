@@ -332,7 +332,7 @@ protected:
 
 private:
     // AT layer
-    mutable ESP8266 _esp;
+    ESP8266 _esp;
     void update_conn_state_cb();
 
     // Credentials

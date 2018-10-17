@@ -250,7 +250,16 @@ int ESP8266Interface::set_channel(uint8_t channel)
 
 int ESP8266Interface::disconnect()
 {
-    return _esp.disconnect() ? NSAPI_ERROR_OK : NSAPI_ERROR_DEVICE_ERROR;
+    int ret = _esp.disconnect() ? NSAPI_ERROR_OK : NSAPI_ERROR_DEVICE_ERROR;
+
+    if (ret == NSAPI_ERROR_OK) {
+        // Try to lure the nw status update from ESP8266, might come later
+        _esp.bg_process_oob(ESP8266_RECV_TIMEOUT, true);
+        // In case the status update arrives later
+        _conn_stat = NSAPI_STATUS_DISCONNECTED;
+    }
+
+    return ret;
 }
 
 const char *ESP8266Interface::get_ip_address()
@@ -640,9 +649,6 @@ void ESP8266Interface::attach(mbed::Callback<void(nsapi_event_t, intptr_t)> stat
 
 nsapi_connection_status_t ESP8266Interface::get_connection_status() const
 {
-    if (_initialized) {
-        _esp.bg_process_oob(ESP8266_RECV_TIMEOUT, true);
-    }
     return _conn_stat;
 }
 
