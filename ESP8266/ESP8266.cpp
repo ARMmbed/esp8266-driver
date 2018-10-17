@@ -66,6 +66,7 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
     // Don't see a reason to make distiction between software(Software WDT reset) and hardware(wdt reset) watchdog treatment
     //https://github.com/esp8266/Arduino/blob/4897e0006b5b0123a2fa31f67b14a3fff65ce561/doc/faq/a02-my-esp-crashes.md#watchdog
     _parser.oob("Soft WDT reset", callback(this, &ESP8266::_oob_watchdog_reset));
+    _parser.oob("busy ", callback(this, &ESP8266::_oob_busy));
 
     for(int i= 0; i < SOCKET_COUNT; i++) {
         _sock_i[i].open = false;
@@ -841,6 +842,24 @@ void ESP8266::_oob_watchdog_reset()
 
     _conn_status = NSAPI_STATUS_DISCONNECTED;
     _conn_stat_cb();
+}
+
+void ESP8266::_oob_busy()
+{
+    char status[5];
+    if (_parser.recv("%4[^\"]\n", status)) {
+        if (strcmp(status, " s...\n") == 0) {
+            ; //TODO maybe do something here, or not...
+        } else if (strcmp(status, "p...\n") == 0) {
+            ; //TODO maybe do something here, or not...
+        } else {
+            MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_EBADMSG), \
+                    "ESP8266::_oob_busy: unrecognized busy state\n");
+        }
+    } else {
+            MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_ENOMSG), \
+                    "ESP8266::_oob_busy: AT timeout\n");
+    }
 }
 
 void ESP8266::_oob_connect_err()

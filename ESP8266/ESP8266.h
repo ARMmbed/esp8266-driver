@@ -406,6 +406,7 @@ private:
     void _oob_connection_status();
     void _oob_socket_close_err();
     void _oob_watchdog_reset();
+    void _oob_busy();
 
     // OOB state variables
     int _connect_error;
