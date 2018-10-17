@@ -125,7 +125,7 @@ int ESP8266Interface::connect(const char *ssid, const char *pass, nsapi_security
 
 void ESP8266Interface::start_bg_oob()
 {
-    static const uint32_t _stack_sz = 2048;
+    static const uint32_t _stack_sz = 1536;
 
     if (!_oob_thr_sta) {
         _oob_thr_sta = (unsigned char*) (malloc(_stack_sz));
@@ -139,17 +139,20 @@ void ESP8266Interface::start_bg_oob()
         _oob_thr = new Thread(osPriorityNormal,
                               _stack_sz,
                               _oob_thr_sta,
-                              "oob_proc");
+                              "esp8266_oob");
     }
-
     if (!_oob_thr) {
         MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_THREAD_CREATE_FAILED), \
-                "ESP8266::start_bg_oob: no thread");
+                "ESP8266::start_bg_oob: thread creation failed");
     }
 
     if (_oob_thr->get_state() == rtos::Thread::Deleted) {
         _oob_thr_run = true;
-        _oob_thr->start(callback(this, &ESP8266Interface::bg_process_oob));
+        osStatus status = _oob_thr->start(callback(this, &ESP8266Interface::thr_process_oob));
+        if (status != osOK) {
+            MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_THREAD_CREATE_FAILED), \
+                            "ESP8266::start_bg_oob: thread start failed");
+        }
     }
 }
 
@@ -661,7 +664,6 @@ void ESP8266Interface::update_conn_state_cb()
         // Start from scratch if connection drops/is dropped
         case NSAPI_STATUS_DISCONNECTED:
             _started = false;
-            _initialized = false;
             break;
         // Handled on AT layer
         case NSAPI_STATUS_LOCAL_UP:
@@ -676,7 +678,7 @@ void ESP8266Interface::update_conn_state_cb()
     }
 }
 
-void ESP8266Interface::bg_process_oob()
+void ESP8266Interface::thr_process_oob()
 {
     while (_oob_thr_run) {
         if (_initialized) {

@@ -372,7 +372,7 @@ private:
     rtos::Thread *_oob_thr;
     unsigned char *_oob_thr_sta;
     bool _oob_thr_run;
-    void bg_process_oob();
+    void thr_process_oob();
     void start_bg_oob();
 };
 
