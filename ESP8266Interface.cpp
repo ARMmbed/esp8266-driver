@@ -640,6 +640,9 @@ void ESP8266Interface::attach(mbed::Callback<void(nsapi_event_t, intptr_t)> stat
 
 nsapi_connection_status_t ESP8266Interface::get_connection_status() const
 {
+    if (_initialized) {
+        _esp.bg_process_oob(ESP8266_RECV_TIMEOUT, true);
+    }
     return _conn_stat;
 }
 
