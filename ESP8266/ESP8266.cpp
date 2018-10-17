@@ -840,7 +840,8 @@ void ESP8266::_oob_watchdog_reset()
         _sock_i[i].open = false;
     }
 
-    _conn_status = NSAPI_STATUS_DISCONNECTED;
+    // Makes possible to reinitialize
+    _conn_status = NSAPI_STATUS_ERROR_UNSUPPORTED;
     _conn_stat_cb();
 }
 
