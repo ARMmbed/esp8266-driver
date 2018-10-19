@@ -21,6 +21,7 @@
 #include "Mutex.h"
 #include "nsapi_types.h"
 #include "rtos.h"
+#include "drivers/UARTSerial.h"
 
 // Various timeouts for different ESP8266 operations
 #ifndef ESP8266_CONNECT_TIMEOUT
