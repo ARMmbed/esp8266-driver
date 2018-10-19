@@ -15,7 +15,9 @@
  */
 
 #include <cstring>
-#include "Callback.h"
+#include "events/EventQueue.h"
+#include "events/mbed_shared_queues.h"
+#include "platform/Callback.h"
 #include "ESP8266.h"
 #include "ESP8266Interface.h"
 #include "mbed_debug.h"
@@ -51,8 +53,8 @@ ESP8266Interface::ESP8266Interface()
       _started(false),
       _conn_stat(NSAPI_STATUS_DISCONNECTED),
       _conn_stat_cb(NULL),
-      _oob_thr(NULL),
-      _oob_thr_sta(NULL)
+      _geq(NULL),
+      _oob_event_id(0)
 {
     memset(_cbs, 0, sizeof(_cbs));
     memset(ap_ssid, 0, sizeof(ap_ssid));
@@ -77,9 +79,8 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug, PinName r
       _started(false),
       _conn_stat(NSAPI_STATUS_DISCONNECTED),
       _conn_stat_cb(NULL),
-      _oob_thr(NULL),
-      _oob_thr_sta(NULL),
-      _oob_thr_run(false)
+      _geq(NULL),
+      _oob_event_id(0)
 {
     memset(_cbs, 0, sizeof(_cbs));
     memset(ap_ssid, 0, sizeof(ap_ssid));
@@ -97,14 +98,8 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug, PinName r
 
 ESP8266Interface::~ESP8266Interface()
 {
-    _oob_thr_run = false;
-
-    if (_oob_thr) {
-        _oob_thr->join();
-        delete _oob_thr;
-    }
-    if (_oob_thr_sta) {
-        free (_oob_thr_sta);
+    if (_oob_event_id) {
+        _geq->cancel(_oob_event_id);
     }
 }
 
@@ -123,36 +118,14 @@ int ESP8266Interface::connect(const char *ssid, const char *pass, nsapi_security
     return connect();
 }
 
-void ESP8266Interface::start_bg_oob()
+void ESP8266Interface::_oob2geq()
 {
-    static const uint32_t _stack_sz = 1536;
+    _geq = mbed_event_queue();
+    _oob_event_id = _geq->call_every(ESP8266_RECV_TIMEOUT, callback(this, &ESP8266Interface::proc_oob_evnt));
 
-    if (!_oob_thr_sta) {
-        _oob_thr_sta = (unsigned char*) (malloc(_stack_sz));
-    }
-    if (!_oob_thr_sta) {
-        MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_ENOMEM), \
-                "ESP8266::start_bg_oob: no memory");
-    }
-
-    if (!_oob_thr) {
-        _oob_thr = new Thread(osPriorityNormal,
-                              _stack_sz,
-                              _oob_thr_sta,
-                              "esp8266_oob");
-    }
-    if (!_oob_thr) {
-        MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_THREAD_CREATE_FAILED), \
-                "ESP8266::start_bg_oob: thread creation failed");
-    }
-
-    if (_oob_thr->get_state() == rtos::Thread::Deleted) {
-        _oob_thr_run = true;
-        osStatus status = _oob_thr->start(callback(this, &ESP8266Interface::thr_process_oob));
-        if (status != osOK) {
-            MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_THREAD_CREATE_FAILED), \
-                            "ESP8266::start_bg_oob: thread start failed");
-        }
+    if (!_oob_event_id) {
+        MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_ENOMEM), \
+                "ESP8266::_oob2geq: unable to allocate OOB event");
     }
 }
 
@@ -175,7 +148,9 @@ int ESP8266Interface::connect()
         return status;
     }
 
-    start_bg_oob();
+    if (!_oob_event_id) {
+        _oob2geq();
+    }
 
     if(get_ip_address()) {
         return NSAPI_ERROR_IS_CONNECTED;
@@ -680,6 +655,8 @@ void ESP8266Interface::update_conn_state_cb()
         default:
             _started = false;
             _initialized = false;
+            _geq->cancel(_oob_event_id);
+            _oob_event_id = 0;
             _conn_stat = NSAPI_STATUS_DISCONNECTED;
     }
 
@@ -689,12 +666,9 @@ void ESP8266Interface::update_conn_state_cb()
     }
 }
 
-void ESP8266Interface::thr_process_oob()
+void ESP8266Interface::proc_oob_evnt()
 {
-    while (_oob_thr_run) {
-        if (_initialized) {
-            _esp.bg_process_oob(ESP8266_RECV_TIMEOUT, true);
-        }
-        wait_ms(ESP8266_RECV_TIMEOUT);
+    if (_initialized) {
+        _esp.bg_process_oob(ESP8266_RECV_TIMEOUT, true);
     }
 }

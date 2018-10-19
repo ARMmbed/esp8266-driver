@@ -19,8 +19,9 @@
 
 #include "mbed.h"
 
-#include "Thread.h"
-#include "Callback.h"
+#include "events/EventQueue.h"
+#include "events/mbed_shared_queues.h"
+#include "platform/Callback.h"
 #include "netsocket/nsapi_types.h"
 #include "netsocket/NetworkInterface.h"
 #include "netsocket/NetworkStack.h"
@@ -369,11 +370,11 @@ private:
     Callback<void(nsapi_event_t, intptr_t)> _conn_stat_cb;
 
     // Background OOB processing
-    rtos::Thread *_oob_thr;
-    unsigned char *_oob_thr_sta;
-    bool _oob_thr_run;
-    void thr_process_oob();
-    void start_bg_oob();
+    // Use global EventQueue
+    events::EventQueue *_geq;
+    int _oob_event_id;
+    void proc_oob_evnt();
+    void _oob2geq();
 };
 
 #endif
