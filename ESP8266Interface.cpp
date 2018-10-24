@@ -291,13 +291,13 @@ bool ESP8266Interface::_get_firmware_ok()
     if (at_v.major < ESP8266_AT_VERSION_MAJOR) {
         debug("ESP8266: ERROR: AT Firmware v%d incompatible with this driver.", at_v.major);
         debug("Update at least to v%d - https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update\n", ESP8266_AT_VERSION_MAJOR);
-        return false;
+        MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_UNSUPPORTED), "Too old AT firmware");
     }
     ESP8266::fw_sdk_version sdk_v = _esp.sdk_version();
     if (sdk_v.major < ESP8266_SDK_VERSION_MAJOR) {
         debug("ESP8266: ERROR: Firmware v%d incompatible with this driver.", sdk_v.major);
         debug("Update at least to v%d - https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update\n", ESP8266_SDK_VERSION_MAJOR);
-        return false;
+        MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_UNSUPPORTED), "Too old SDK firmware");
     }
 
     return true;
