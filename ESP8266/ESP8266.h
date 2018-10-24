@@ -17,11 +17,16 @@
 #ifndef ESP8266_H
 #define ESP8266_H
 
-#include "ATCmdParser.h"
-#include "Mutex.h"
-#include "nsapi_types.h"
-#include "rtos.h"
+#include <stdint.h>
+
+#include "rtos/Mutex.h"
 #include "drivers/UARTSerial.h"
+#include "platform/ATCmdParser.h"
+#include "platform/Callback.h"
+#include "platform/mbed_error.h"
+#include "features/netsocket/nsapi_types.h"
+#include "features/netsocket/WiFiAccessPoint.h"
+#include "PinNames.h"
 
 // Various timeouts for different ESP8266 operations
 #ifndef ESP8266_CONNECT_TIMEOUT
@@ -281,7 +286,7 @@ public:
     *
     * @param func A pointer to a void function, or 0 to set as none
     */
-    void sigio(Callback<void()> func);
+    void sigio(mbed::Callback<void()> func);
 
     /**
     * Attach a function to call whenever sigio happens in the serial
@@ -292,7 +297,7 @@ public:
     template <typename T, typename M>
     void sigio(T *obj, M method)
     {
-        sigio(Callback<void()>(obj, method));
+        sigio(mbed::Callback<void()>(obj, method));
     }
 
     /**
@@ -368,13 +373,13 @@ private:
     int32_t _recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t timeout);
 
     // UART settings
-    UARTSerial _serial;
+    mbed::UARTSerial _serial;
     PinName _serial_rts;
     PinName _serial_cts;
-    Mutex _smutex; // Protect serial port access
+    rtos::Mutex _smutex; // Protect serial port access
 
     // AT Command Parser
-    ATCmdParser _parser;
+    mbed::ATCmdParser _parser;
 
     // Wifi scan result handling
     bool _recv_ap(nsapi_wifi_ap_t *ap);
@@ -432,7 +437,7 @@ private:
 
     // Connection state reporting
     nsapi_connection_status_t _conn_status;
-    Callback<void()> _conn_stat_cb; // ESP8266Interface registered
+    mbed::Callback<void()> _conn_stat_cb; // ESP8266Interface registered
 };
 
 #endif

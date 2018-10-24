@@ -22,11 +22,11 @@
 #include "events/EventQueue.h"
 #include "events/mbed_shared_queues.h"
 #include "platform/Callback.h"
-#include "netsocket/nsapi_types.h"
-#include "netsocket/NetworkInterface.h"
-#include "netsocket/NetworkStack.h"
-#include "netsocket/WiFiAccessPoint.h"
-#include "netsocket/WiFiInterface.h"
+#include "features/netsocket/nsapi_types.h"
+#include "features/netsocket/NetworkInterface.h"
+#include "features/netsocket/NetworkStack.h"
+#include "features/netsocket/WiFiAccessPoint.h"
+#include "features/netsocket/WiFiInterface.h"
 
 #include "ESP8266.h"
 
