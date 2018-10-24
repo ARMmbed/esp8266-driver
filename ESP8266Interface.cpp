@@ -14,15 +14,17 @@
  * limitations under the License.
  */
 
-#include <cstring>
-#include "events/EventQueue.h"
-#include "events/mbed_shared_queues.h"
-#include "platform/Callback.h"
+#include <string.h>
+#include <stdint.h>
+
 #include "ESP8266.h"
 #include "ESP8266Interface.h"
-#include "mbed_debug.h"
+#include "events/EventQueue.h"
+#include "events/mbed_shared_queues.h"
+#include "features/netsocket/nsapi_types.h"
 #include "mbed_trace.h"
-#include "nsapi_types.h"
+#include "platform/Callback.h"
+#include "platform/mbed_debug.h"
 
 #ifndef MBED_CONF_ESP8266_DEBUG
 #define MBED_CONF_ESP8266_DEBUG false

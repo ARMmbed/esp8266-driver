@@ -14,19 +14,22 @@
  * limitations under the License.
  */
 
+#include <string.h>
+#include <stdint.h>
+
 #include "ESP8266.h"
-#include "Callback.h"
-#include "mbed_error.h"
+#include "features/netsocket/nsapi_types.h"
 #include "mbed_trace.h"
-#include "nsapi_types.h"
 #include "PinNames.h"
+#include "platform/Callback.h"
+#include "platform/mbed_error.h"
 
 #define TRACE_GROUP  "ESPA" // ESP8266 AT layer
 
-#include <cstring>
-
 #define ESP8266_DEFAULT_BAUD_RATE   115200
 #define ESP8266_ALL_SOCKET_IDS      -1
+
+using namespace mbed;
 
 ESP8266::ESP8266(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
     : _sdk_v(-1, -1, -1),
