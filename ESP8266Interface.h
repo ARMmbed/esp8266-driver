@@ -376,7 +376,7 @@ private:
 
     // Connection state reporting to application
     nsapi_connection_status_t _conn_stat;
-    Callback<void(nsapi_event_t, intptr_t)> _conn_stat_cb;
+    mbed::Callback<void(nsapi_event_t, intptr_t)> _conn_stat_cb;
 
     // Background OOB processing
     // Use global EventQueue

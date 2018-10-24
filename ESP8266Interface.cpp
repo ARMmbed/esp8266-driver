@@ -40,6 +40,8 @@
 
 #define TRACE_GROUP  "ESPI" // ESP8266 Interface
 
+using namespace mbed;
+
 #if defined MBED_CONF_ESP8266_TX && defined MBED_CONF_ESP8266_RX
 ESP8266Interface::ESP8266Interface()
     : _esp(MBED_CONF_ESP8266_TX, MBED_CONF_ESP8266_RX, MBED_CONF_ESP8266_DEBUG, MBED_CONF_ESP8266_RTS, MBED_CONF_ESP8266_CTS),
@@ -612,7 +614,7 @@ void ESP8266Interface::event()
     }
 }
 
-void ESP8266Interface::attach(mbed::Callback<void(nsapi_event_t, intptr_t)> status_cb)
+void ESP8266Interface::attach(Callback<void(nsapi_event_t, intptr_t)> status_cb)
 {
     _conn_stat_cb = status_cb;
 }
