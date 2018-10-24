@@ -21,6 +21,7 @@
 #include "ESP8266.h"
 #include "ESP8266Interface.h"
 #include "mbed_debug.h"
+#include "mbed_trace.h"
 #include "nsapi_types.h"
 
 #ifndef MBED_CONF_ESP8266_DEBUG
@@ -34,6 +35,8 @@
 #ifndef MBED_CONF_ESP8266_CTS
 #define MBED_CONF_ESP8266_CTS NC
 #endif
+
+#define TRACE_GROUP  "ESPI" // ESP8266 Interface
 
 #if defined MBED_CONF_ESP8266_TX && defined MBED_CONF_ESP8266_RX
 ESP8266Interface::ESP8266Interface()

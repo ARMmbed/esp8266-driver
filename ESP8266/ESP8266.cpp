@@ -17,8 +17,11 @@
 #include "ESP8266.h"
 #include "Callback.h"
 #include "mbed_error.h"
+#include "mbed_trace.h"
 #include "nsapi_types.h"
 #include "PinNames.h"
+
+#define TRACE_GROUP  "ESPA" // ESP8266 AT layer
 
 #include <cstring>
 
@@ -442,6 +445,10 @@ nsapi_error_t ESP8266::open_udp(int id, const char *addr, int port, int local_po
 
     _smutex.unlock();
 
+    if (done) {
+        tr_debug("UDP socket %d opened", id);
+    }
+
     return done ? NSAPI_ERROR_OK : NSAPI_ERROR_DEVICE_ERROR;
 }
 
@@ -487,6 +494,10 @@ nsapi_error_t ESP8266::open_tcp(int id, const char *addr, int port, int keepaliv
     _clear_socket_packets(id);
 
     _smutex.unlock();
+
+    if (done) {
+        tr_debug("TCP socket %d opened", id);
+    }
 
     return done ? NSAPI_ERROR_OK : NSAPI_ERROR_DEVICE_ERROR;
 }
@@ -555,15 +566,13 @@ void ESP8266::_oob_packet_hdlr()
     pdu_len = sizeof(struct packet) + amount;
 
     if ((_heap_usage + pdu_len) > MBED_CONF_ESP8266_SOCKET_BUFSIZE) {
-        MBED_WARNING(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_ENOBUFS), \
-                     "ESP8266::_packet_handler(): \"esp8266.socket-bufsize\"-limit exceeded, packet dropped");
+        tr_debug("\"esp8266.socket-bufsize\"-limit exceeded, packet dropped");
         return;
     }
 
     struct packet *packet = (struct packet *)malloc(pdu_len);
     if (!packet) {
-        MBED_WARNING(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_ENOMEM), \
-                     "ESP8266::_packet_handler(): Could not allocate memory for RX data");
+        tr_debug("out of memory, unable to allocate memory for packet");
         return;
     }
     _heap_usage += pdu_len;
@@ -904,27 +913,37 @@ void ESP8266::_oob_socket_close_err()
 
 void ESP8266::_oob_socket0_closed()
 {
-    _sock_i[0].open = false;
+    static const int id = 0;
+    _sock_i[id].open = false;
+    tr_debug("socket %d closed", id);
 }
 
 void ESP8266::_oob_socket1_closed()
 {
-    _sock_i[1].open = false;
+    static const int id = 1;
+    _sock_i[id].open = false;
+    tr_debug("socket %d closed", id);
 }
 
 void ESP8266::_oob_socket2_closed()
 {
-    _sock_i[2].open = false;
+    static const int id = 2;
+    _sock_i[id].open = false;
+    tr_debug("socket %d closed", id);
 }
 
 void ESP8266::_oob_socket3_closed()
 {
-    _sock_i[3].open = false;
+    static const int id = 3;
+    _sock_i[id].open = false;
+    tr_debug("socket %d closed", id);
 }
 
 void ESP8266::_oob_socket4_closed()
 {
-    _sock_i[4].open = false;
+    static const int id = 4;
+    _sock_i[id].open = false;
+    tr_debug("socket %d closed", id);
 }
 
 void ESP8266::_oob_connection_status()
@@ -938,6 +957,7 @@ void ESP8266::_oob_connection_status()
         } else if (strcmp(status, "CONNECTED\n") == 0) {
             _conn_status = NSAPI_STATUS_CONNECTING;
         } else {
+            tr_error("invalid AT cmd \'%s\'", status);
             MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_EBADMSG), \
                        "ESP8266::_oob_connection_status: invalid AT cmd\n");
         }
