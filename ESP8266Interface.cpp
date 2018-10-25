@@ -53,7 +53,7 @@ ESP8266Interface::ESP8266Interface()
       _started(false),
       _conn_stat(NSAPI_STATUS_DISCONNECTED),
       _conn_stat_cb(NULL),
-      _geq(NULL),
+      _global_event_queue(NULL),
       _oob_event_id(0)
 {
     memset(_cbs, 0, sizeof(_cbs));
@@ -79,7 +79,7 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug, PinName r
       _started(false),
       _conn_stat(NSAPI_STATUS_DISCONNECTED),
       _conn_stat_cb(NULL),
-      _geq(NULL),
+      _global_event_queue(NULL),
       _oob_event_id(0)
 {
     memset(_cbs, 0, sizeof(_cbs));
@@ -99,7 +99,7 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug, PinName r
 ESP8266Interface::~ESP8266Interface()
 {
     if (_oob_event_id) {
-        _geq->cancel(_oob_event_id);
+        _global_event_queue->cancel(_oob_event_id);
     }
 }
 
@@ -118,10 +118,10 @@ int ESP8266Interface::connect(const char *ssid, const char *pass, nsapi_security
     return connect();
 }
 
-void ESP8266Interface::_oob2geq()
+void ESP8266Interface::_oob2global_event_queue()
 {
-    _geq = mbed_event_queue();
-    _oob_event_id = _geq->call_every(ESP8266_RECV_TIMEOUT, callback(this, &ESP8266Interface::proc_oob_evnt));
+    _global_event_queue = mbed_event_queue();
+    _oob_event_id = _global_event_queue->call_every(ESP8266_RECV_TIMEOUT, callback(this, &ESP8266Interface::proc_oob_evnt));
 
     if (!_oob_event_id) {
         MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_ENOMEM), \
@@ -149,7 +149,7 @@ int ESP8266Interface::connect()
     }
 
     if (!_oob_event_id) {
-        _oob2geq();
+        _oob2global_event_queue();
     }
 
     if(get_ip_address()) {
@@ -655,7 +655,7 @@ void ESP8266Interface::update_conn_state_cb()
         default:
             _started = false;
             _initialized = false;
-            _geq->cancel(_oob_event_id);
+            _global_event_queue->cancel(_oob_event_id);
             _oob_event_id = 0;
             _conn_stat = NSAPI_STATUS_DISCONNECTED;
     }
