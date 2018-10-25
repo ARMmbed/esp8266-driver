@@ -371,10 +371,10 @@ private:
 
     // Background OOB processing
     // Use global EventQueue
-    events::EventQueue *_geq;
+    events::EventQueue *_global_event_queue;
     int _oob_event_id;
     void proc_oob_evnt();
-    void _oob2geq();
+    void _oob2global_event_queue();
 };
 
 #endif
