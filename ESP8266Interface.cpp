@@ -64,7 +64,7 @@ ESP8266Interface::ESP8266Interface()
     _esp.set_timeout();
     _esp.attach(this, &ESP8266Interface::update_conn_state_cb);
 
-    for(int i= 0; i < ESP8266_SOCKET_COUNT; i++) {
+    for (int i = 0; i < ESP8266_SOCKET_COUNT; i++) {
         _sock_i[i].open = false;
         _sock_i[i].sport = -1;
     }
@@ -90,7 +90,7 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug, PinName r
     _esp.set_timeout();
     _esp.attach(this, &ESP8266Interface::update_conn_state_cb);
 
-    for(int i= 0; i < ESP8266_SOCKET_COUNT; i++) {
+    for (int i = 0; i < ESP8266_SOCKET_COUNT; i++) {
         _sock_i[i].open = false;
         _sock_i[i].sport = -1;
     }
@@ -104,14 +104,14 @@ ESP8266Interface::~ESP8266Interface()
 }
 
 int ESP8266Interface::connect(const char *ssid, const char *pass, nsapi_security_t security,
-                                        uint8_t channel)
+                              uint8_t channel)
 {
     if (channel != 0) {
         return NSAPI_ERROR_UNSUPPORTED;
     }
 
     int err = set_credentials(ssid, pass, security);
-    if(err) {
+    if (err) {
         return err;
     }
 
@@ -125,7 +125,7 @@ void ESP8266Interface::_oob2global_event_queue()
 
     if (!_oob_event_id) {
         MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_ENOMEM), \
-                "ESP8266::_oob2geq: unable to allocate OOB event");
+                   "ESP8266::_oob2geq: unable to allocate OOB event");
     }
 }
 
@@ -144,7 +144,7 @@ int ESP8266Interface::connect()
     }
 
     status = _init();
-    if(status != NSAPI_ERROR_OK) {
+    if (status != NSAPI_ERROR_OK) {
         return status;
     }
 
@@ -152,12 +152,12 @@ int ESP8266Interface::connect()
         _oob2global_event_queue();
     }
 
-    if(get_ip_address()) {
+    if (get_ip_address()) {
         return NSAPI_ERROR_IS_CONNECTED;
     }
 
     status = _startup(ESP8266::WIFIMODE_STATION);
-    if(status != NSAPI_ERROR_OK) {
+    if (status != NSAPI_ERROR_OK) {
         return status;
     }
     _started = true;
@@ -189,7 +189,7 @@ int ESP8266Interface::set_credentials(const char *ssid, const char *pass, nsapi_
     int ssid_length = strlen(ssid);
 
     if (ssid_length > 0
-        && ssid_length <= ESP8266_SSID_MAX_LENGTH) {
+            && ssid_length <= ESP8266_SSID_MAX_LENGTH) {
         memset(ap_ssid, 0, sizeof(ap_ssid));
         strncpy(ap_ssid, ssid, sizeof(ap_ssid));
     } else {
@@ -204,7 +204,7 @@ int ESP8266Interface::set_credentials(const char *ssid, const char *pass, nsapi_
 
         int pass_length = strlen(pass);
         if (pass_length >= ESP8266_PASSPHRASE_MIN_LENGTH
-            && pass_length <= ESP8266_PASSPHRASE_MAX_LENGTH ) {
+                && pass_length <= ESP8266_PASSPHRASE_MAX_LENGTH) {
             memset(ap_pass, 0, sizeof(ap_pass));
             strncpy(ap_pass, pass, sizeof(ap_pass));
         } else {
@@ -239,12 +239,12 @@ int ESP8266Interface::disconnect()
 
 const char *ESP8266Interface::get_ip_address()
 {
-    if(!_started) {
+    if (!_started) {
         return NULL;
     }
 
     const char *ip_buff = _esp.ip_addr();
-    if(!ip_buff || std::strcmp(ip_buff, "0.0.0.0") == 0) {
+    if (!ip_buff || std::strcmp(ip_buff, "0.0.0.0") == 0) {
         return NULL;
     }
 
@@ -276,12 +276,12 @@ int ESP8266Interface::scan(WiFiAccessPoint *res, unsigned count)
     nsapi_error_t status;
 
     status = _init();
-    if(status != NSAPI_ERROR_OK) {
+    if (status != NSAPI_ERROR_OK) {
         return status;
     }
 
     status = _startup(ESP8266::WIFIMODE_STATION);
-    if(status != NSAPI_ERROR_OK) {
+    if (status != NSAPI_ERROR_OK) {
         return status;
     }
 
@@ -413,12 +413,12 @@ int ESP8266Interface::socket_bind(void *handle, const SocketAddress &address)
     }
 
     if (socket->proto == NSAPI_UDP) {
-        if(address.get_addr().version != NSAPI_UNSPEC) {
+        if (address.get_addr().version != NSAPI_UNSPEC) {
             return NSAPI_ERROR_UNSUPPORTED;
         }
 
-        for(int id = 0; id < ESP8266_SOCKET_COUNT; id++) {
-            if(_sock_i[id].sport == address.get_port() && id != socket->id) { // Port already reserved by another socket
+        for (int id = 0; id < ESP8266_SOCKET_COUNT; id++) {
+            if (_sock_i[id].sport == address.get_port() && id != socket->id) { // Port already reserved by another socket
                 return NSAPI_ERROR_PARAMETER;
             } else if (id == socket->id && socket->connected) {
                 return NSAPI_ERROR_PARAMETER;
@@ -504,7 +504,7 @@ int ESP8266Interface::socket_sendto(void *handle, const SocketAddress &addr, con
         return NSAPI_ERROR_NO_SOCKET;
     }
 
-    if((strcmp(addr.get_ip_address(), "0.0.0.0") == 0) || !addr.get_port())  {
+    if ((strcmp(addr.get_ip_address(), "0.0.0.0") == 0) || !addr.get_port())  {
         return NSAPI_ERROR_DNS_FAILURE;
     }
 
@@ -550,7 +550,7 @@ void ESP8266Interface::socket_attach(void *handle, void (*callback)(void *), voi
 }
 
 nsapi_error_t ESP8266Interface::setsockopt(nsapi_socket_t handle, int level,
-        int optname, const void *optval, unsigned optlen)
+                                           int optname, const void *optval, unsigned optlen)
 {
     struct esp8266_socket *socket = (struct esp8266_socket *)handle;
 
@@ -563,7 +563,7 @@ nsapi_error_t ESP8266Interface::setsockopt(nsapi_socket_t handle, int level,
     if (level == NSAPI_SOCKET && socket->proto == NSAPI_TCP) {
         switch (optname) {
             case NSAPI_KEEPALIVE: {
-                if(socket->connected) {// ESP8266 limitation, keepalive needs to be given before connecting
+                if (socket->connected) { // ESP8266 limitation, keepalive needs to be given before connecting
                     return NSAPI_ERROR_UNSUPPORTED;
                 }
 
@@ -595,7 +595,7 @@ nsapi_error_t ESP8266Interface::getsockopt(nsapi_socket_t handle, int level, int
     if (level == NSAPI_SOCKET && socket->proto == NSAPI_TCP) {
         switch (optname) {
             case NSAPI_KEEPALIVE: {
-                if(*optlen > sizeof(int)) {
+                if (*optlen > sizeof(int)) {
                     *optlen = sizeof(int);
                 }
                 memcpy(optval, &(socket->keepalive), *optlen);
@@ -629,7 +629,8 @@ nsapi_connection_status_t ESP8266Interface::get_connection_status() const
 
 #if MBED_CONF_ESP8266_PROVIDE_DEFAULT
 
-WiFiInterface *WiFiInterface::get_default_instance() {
+WiFiInterface *WiFiInterface::get_default_instance()
+{
     static ESP8266Interface esp;
     return &esp;
 }
@@ -640,7 +641,7 @@ void ESP8266Interface::update_conn_state_cb()
 {
     _conn_stat = _esp.connection_status();
 
-    switch(_conn_stat) {
+    switch (_conn_stat) {
         // Doesn't require changes
         case NSAPI_STATUS_CONNECTING:
         case NSAPI_STATUS_GLOBAL_UP:
