@@ -35,8 +35,7 @@
 /** ESP8266Interface class
  *  Implementation of the NetworkStack for the ESP8266
  */
-class ESP8266Interface : public NetworkStack, public WiFiInterface
-{
+class ESP8266Interface : public NetworkStack, public WiFiInterface {
 public:
 #if defined MBED_CONF_ESP8266_TX && defined MBED_CONF_ESP8266_RX
     /**
@@ -51,7 +50,7 @@ public:
      * @param rx        RX pin
      * @param debug     Enable debugging
      */
-    ESP8266Interface(PinName tx, PinName rx, bool debug=false, PinName rts=NC, PinName cts=NC);
+    ESP8266Interface(PinName tx, PinName rx, bool debug = false, PinName rts = NC, PinName cts = NC);
 
     /**
      * @brief ESP8266Interface default destructor
@@ -78,7 +77,7 @@ public:
      *  @return          0 on success, or error code on failure
      */
     virtual int connect(const char *ssid, const char *pass, nsapi_security_t security = NSAPI_SECURITY_NONE,
-                                  uint8_t channel = 0);
+                        uint8_t channel = 0);
 
     /** Set the WiFi network credentials
      *
@@ -114,11 +113,11 @@ public:
      */
     virtual const char *get_mac_address();
 
-     /** Get the local gateway
-     *
-     *  @return         Null-terminated representation of the local gateway
-     *                  or null if no network mask has been recieved
-     */
+    /** Get the local gateway
+    *
+    *  @return         Null-terminated representation of the local gateway
+    *                  or null if no network mask has been recieved
+    */
     virtual const char *get_gateway();
 
     /** Get the local network mask
@@ -183,7 +182,7 @@ public:
      *  @return         0 on success, negative error code on failure
      */
     virtual nsapi_error_t setsockopt(nsapi_socket_t handle, int level,
-            int optname, const void *optval, unsigned optlen);
+                                     int optname, const void *optval, unsigned optlen);
 
     /** Get socket options
      *
@@ -201,7 +200,7 @@ public:
      *  @return         0 on success, negative error code on failure
      */
     virtual nsapi_error_t getsockopt(nsapi_socket_t handle, int level, int optname,
-            void *optval, unsigned *optlen);
+                                     void *optval, unsigned *optlen);
 
     /** Register callback for status reporting
      *

@@ -51,10 +51,9 @@
 /** ESP8266Interface class.
     This is an interface to a ESP8266 radio.
  */
-class ESP8266
-{
+class ESP8266 {
 public:
-    ESP8266(PinName tx, PinName rx, bool debug=false, PinName rts=NC, PinName cts=NC);
+    ESP8266(PinName tx, PinName rx, bool debug = false, PinName rts = NC, PinName cts = NC);
 
     /**
     * ESP8266 firmware SDK version
@@ -67,7 +66,7 @@ public:
         int major;
         int minor;
         int patch;
-        fw_sdk_version (int major, int minor, int patch) : major(major), minor(minor), patch(patch) {}
+        fw_sdk_version(int major, int minor, int patch) : major(major), minor(minor), patch(patch) {}
     };
 
     /**
@@ -81,7 +80,7 @@ public:
         int major;
         int minor;
         int patch;
-        fw_at_version (int major, int minor, int patch) : major(major), minor(minor), patch(patch) {}
+        fw_at_version(int major, int minor, int patch) : major(major), minor(minor), patch(patch) {}
     };
 
     /**
@@ -159,11 +158,11 @@ public:
     */
     const char *mac_addr(void);
 
-     /** Get the local gateway
-     *
-     *  @return         Null-terminated representation of the local gateway
-     *                  or null if no network mask has been recieved
-     */
+    /** Get the local gateway
+    *
+    *  @return         Null-terminated representation of the local gateway
+    *                  or null if no network mask has been recieved
+    */
     const char *gateway();
 
     /** Get the local network mask
@@ -207,7 +206,7 @@ public:
     * @param local_port UDP socket's local port, zero means any
     * @return NSAPI_ERROR_OK in success, negative error code in failure
     */
-    nsapi_error_t open_udp(int id, const char* addr, int port, int local_port = 0);
+    nsapi_error_t open_udp(int id, const char *addr, int port, int local_port = 0);
 
     /**
     * Open a socketed connection
@@ -220,7 +219,7 @@ public:
     * @param tcp_keepalive TCP connection's keep alive time, zero means disabled
     * @return NSAPI_ERROR_OK in success, negative error code in failure
     */
-    nsapi_error_t open_tcp(int id, const char* addr, int port, int keepalive = 0);
+    nsapi_error_t open_tcp(int id, const char *addr, int port, int keepalive = 0);
 
     /**
     * Sends data to an open socket
@@ -240,7 +239,7 @@ public:
     * @param amount number of bytes to be received
     * @return the number of bytes received
     */
-    int32_t recv_udp(int id, void *data, uint32_t amount, uint32_t timeout=ESP8266_RECV_TIMEOUT);
+    int32_t recv_udp(int id, void *data, uint32_t amount, uint32_t timeout = ESP8266_RECV_TIMEOUT);
 
     /**
     * Receives stream data from an open TCP socket
@@ -250,7 +249,7 @@ public:
     * @param amount number of bytes to be received
     * @return the number of bytes received
     */
-    int32_t recv_tcp(int id, void *data, uint32_t amount, uint32_t timeout=ESP8266_RECV_TIMEOUT);
+    int32_t recv_tcp(int id, void *data, uint32_t amount, uint32_t timeout = ESP8266_RECV_TIMEOUT);
 
     /**
     * Closes a socket
@@ -265,7 +264,7 @@ public:
     *
     * @param timeout_ms timeout of the connection
     */
-    void set_timeout(uint32_t timeout_ms=ESP8266_MISC_TIMEOUT);
+    void set_timeout(uint32_t timeout_ms = ESP8266_MISC_TIMEOUT);
 
     /**
     * Checks if data is available
@@ -291,7 +290,8 @@ public:
     * @param method pointer to the member function to call
     */
     template <typename T, typename M>
-    void sigio(T *obj, M method) {
+    void sigio(T *obj, M method)
+    {
         sigio(Callback<void()>(obj, method));
     }
 
@@ -303,7 +303,8 @@ public:
     void attach(mbed::Callback<void()> status_cb);
 
     template <typename T, typename M>
-    void attach(T *obj, M method) {
+    void attach(T *obj, M method)
+    {
         attach(mbed::Callback<void()>(obj, method));
     }
 
@@ -385,7 +386,7 @@ private:
         uint32_t len; // Remaining length
         uint32_t alloc_len; // Original length
         // data follows
-    } *_packets, **_packets_end;
+    } *_packets, * *_packets_end;
     void _clear_socket_packets(int id);
 
     // Memory statistics
