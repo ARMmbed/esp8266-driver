@@ -17,18 +17,16 @@
 #ifndef ESP8266_INTERFACE_H
 #define ESP8266_INTERFACE_H
 
-#include "mbed.h"
-
+#include "ESP8266/ESP8266.h"
 #include "events/EventQueue.h"
 #include "events/mbed_shared_queues.h"
-#include "platform/Callback.h"
-#include "features/netsocket/nsapi_types.h"
 #include "features/netsocket/NetworkInterface.h"
 #include "features/netsocket/NetworkStack.h"
+#include "features/netsocket/nsapi_types.h"
+#include "features/netsocket/SocketAddress.h"
 #include "features/netsocket/WiFiAccessPoint.h"
 #include "features/netsocket/WiFiInterface.h"
-
-#include "ESP8266.h"
+#include "platform/Callback.h"
 
 #define ESP8266_SOCKET_COUNT 5
 

@@ -19,14 +19,14 @@
 
 #include <stdint.h>
 
-#include "rtos/Mutex.h"
 #include "drivers/UARTSerial.h"
-#include "platform/ATCmdParser.h"
-#include "platform/Callback.h"
-#include "platform/mbed_error.h"
 #include "features/netsocket/nsapi_types.h"
 #include "features/netsocket/WiFiAccessPoint.h"
 #include "PinNames.h"
+#include "platform/ATCmdParser.h"
+#include "platform/Callback.h"
+#include "platform/mbed_error.h"
+#include "rtos/Mutex.h"
 
 // Various timeouts for different ESP8266 operations
 #ifndef ESP8266_CONNECT_TIMEOUT
