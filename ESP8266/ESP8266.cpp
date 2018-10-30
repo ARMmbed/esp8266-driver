@@ -612,6 +612,11 @@ int32_t ESP8266::_recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t
         _process_oob(timeout, true);
     }
 
+    // +CIPRECVDATA supports up to 2048 bytes at a time
+    if (amount > 2048) {
+        amount = 2048;
+    }
+
     // NOTE: documentation v3.0 says '+CIPRECVDATA:<data_len>,' but it's not how the FW responds...
     bool done = _parser.send("AT+CIPRECVDATA=%d,%lu", id, amount)
                 && _parser.recv("+CIPRECVDATA,%ld:", &len)
