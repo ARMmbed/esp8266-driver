@@ -73,10 +73,15 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
     //https://github.com/esp8266/Arduino/blob/4897e0006b5b0123a2fa31f67b14a3fff65ce561/doc/faq/a02-my-esp-crashes.md#watchdog
     _parser.oob("Soft WDT reset", callback(this, &ESP8266::_oob_watchdog_reset));
     _parser.oob("busy ", callback(this, &ESP8266::_oob_busy));
+    // NOTE: documentation v3.0 says '+CIPRECVDATA:<data_len>,' but it's not how the FW responds...
+    _parser.oob("+CIPRECVDATA,", callback(this, &ESP8266::_oob_tcp_data_hdlr));
 
     for (int i = 0; i < SOCKET_COUNT; i++) {
         _sock_i[i].open = false;
         _sock_i[i].proto = NSAPI_UDP;
+        _sock_i[i].tcp_data = NULL;
+        _sock_i[i].tcp_data_avbl = 0;
+        _sock_i[i].tcp_data_rcvd = 0;
     }
 }
 
@@ -552,16 +557,12 @@ void ESP8266::_oob_packet_hdlr()
     if (!_parser.recv(",%d,", &id)) {
         return;
     }
-    // In passive mode amount not used...
-    if (_tcp_passive
-            && _sock_i[id].open == true
-            && _sock_i[id].proto == NSAPI_TCP) {
-        if (!_parser.recv("%d\n", &amount)) {
-            MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_ENODATA), \
-                       "ESP8266::_packet_handler(): Data length missing");
+
+    if(_tcp_passive && _sock_i[id].open == true && _sock_i[id].proto == NSAPI_TCP) {
+        if (_parser.recv("%d\n", &amount)) {
+            _sock_i[id].tcp_data_avbl = amount; // Not used but stored for the sake of visibility
         }
         return;
-        // Amount required in active mode
     } else if (!_parser.recv("%d:", &amount)) {
         return;
     }
@@ -614,15 +615,13 @@ void ESP8266::bg_process_oob(uint32_t timeout, bool all)
 
 int32_t ESP8266::_recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t timeout)
 {
-    int32_t len;
-    int32_t ret = (int32_t)NSAPI_ERROR_WOULD_BLOCK;
+    int32_t ret;
 
     _smutex.lock();
 
-    // No flow control, drain the USART receive register ASAP to avoid data overrun
-    if (_serial_rts == NC) {
-        _process_oob(timeout, true);
-    }
+    _sock_i[id].tcp_data = (char*)data;
+    _sock_i[id].tcp_data_rcvd = NSAPI_ERROR_WOULD_BLOCK;
+    _sock_active_id = id;
 
     // +CIPRECVDATA supports up to 2048 bytes at a time
     if (amount > 2048) {
@@ -631,29 +630,18 @@ int32_t ESP8266::_recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t
 
     // NOTE: documentation v3.0 says '+CIPRECVDATA:<data_len>,' but it's not how the FW responds...
     bool done = _parser.send("AT+CIPRECVDATA=%d,%lu", id, amount)
-                && _parser.recv("+CIPRECVDATA,%ld:", &len)
-                && _parser.read((char *)data, len)
                 && _parser.recv("OK\n");
 
-    if (done) {
-        _smutex.unlock();
-        return len;
+    (void)done;
+    _sock_i[id].tcp_data = NULL;
+    _sock_active_id = -1;
+
+    ret = _sock_i[id].tcp_data_rcvd;
+
+    if (!_sock_i[id].open && ret == NSAPI_ERROR_WOULD_BLOCK) {
+        ret = 0;
     }
 
-    // Socket closed, doesn't mean there couldn't be data left
-    if (!_sock_i[id].open) {
-        done = _parser.send("AT+CIPRECVDATA=%d,%lu", id, amount)
-               && _parser.recv("+CIPRECVDATA,%ld:", &len)
-               && _parser.read((char *)data, len)
-               && _parser.recv("OK\n");
-
-        ret = done ? len : 0;
-    }
-
-    // Flow control, read from USART receive register only when no more data is buffered, and as little as possible
-    if (_serial_rts != NC) {
-        _process_oob(timeout, false);
-    }
     _smutex.unlock();
     return ret;
 }
@@ -780,6 +768,13 @@ void ESP8266::_clear_socket_packets(int id)
             p = &(*p)->next;
         }
     }
+    if (id == ESP8266_ALL_SOCKET_IDS) {
+        for (int id = 0; id < 5; id++) {
+            _sock_i[id].tcp_data_avbl = 0;
+        }
+    } else {
+        _sock_i[id].tcp_data_avbl = 0;
+    }
 }
 
 bool ESP8266::close(int id)
@@ -882,6 +877,23 @@ void ESP8266::_oob_busy()
                    "ESP8266::_oob_busy() AT timeout\n");
     }
     _busy = true;
+}
+
+void ESP8266::_oob_tcp_data_hdlr()
+{
+    int32_t len;
+
+    MBED_ASSERT(_sock_active_id >= 0 && _sock_active_id < 5);
+
+    if (!_parser.recv("%ld:", &len)) {
+        return;
+    }
+
+    if (!_parser.read(_sock_i[_sock_active_id].tcp_data, len)) {
+        return;
+    }
+
+    _sock_i[_sock_active_id].tcp_data_rcvd = len;
 }
 
 void ESP8266::_oob_connect_err()

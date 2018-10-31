@@ -393,6 +393,7 @@ private:
         // data follows
     } *_packets, * *_packets_end;
     void _clear_socket_packets(int id);
+    int _sock_active_id;
 
     // Memory statistics
     size_t _heap_usage; // (Socket data buffer usage)
@@ -414,6 +415,7 @@ private:
     void _oob_socket_close_err();
     void _oob_watchdog_reset();
     void _oob_busy();
+    void _oob_tcp_data_hdlr();
 
     // OOB state variables
     int _connect_error;
@@ -433,6 +435,9 @@ private:
     struct _sock_info {
         bool open;
         nsapi_protocol_t proto;
+        char *tcp_data;
+        int32_t tcp_data_avbl; // Data waiting on modem
+        int32_t tcp_data_rcvd;
     };
     struct _sock_info _sock_i[SOCKET_COUNT];
 
