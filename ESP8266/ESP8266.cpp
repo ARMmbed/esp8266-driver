@@ -868,18 +868,20 @@ void ESP8266::_oob_busy()
 {
     char status[5];
     if (_parser.recv("%4[^\"]\n", status)) {
-        if (strcmp(status, " s...\n") == 0) {
-            ; //TODO maybe do something here, or not...
-        } else if (strcmp(status, "p...\n") == 0) {
-            ; //TODO maybe do something here, or not...
+        if (strcmp(status, "s...") == 0) {
+            tr_debug("busy s...");
+        } else if (strcmp(status, "p...") == 0) {
+            tr_debug("busy p...");
         } else {
+            tr_error("unrecognized busy state \'%s\'", status);
             MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_EBADMSG), \
-                       "ESP8266::_oob_busy: unrecognized busy state\n");
+                       "ESP8266::_oob_busy() unrecognized busy state\n");
         }
     } else {
         MBED_ERROR(MBED_MAKE_ERROR(MBED_MODULE_DRIVER, MBED_ERROR_CODE_ENOMSG), \
-                   "ESP8266::_oob_busy: AT timeout\n");
+                   "ESP8266::_oob_busy() AT timeout\n");
     }
+    _busy = true;
 }
 
 void ESP8266::_oob_connect_err()
