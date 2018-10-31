@@ -421,6 +421,7 @@ private:
     bool _sock_already;
     bool _closed;
     bool _error;
+    bool _busy;
 
     // Modem's address info
     char _ip_buffer[16];
