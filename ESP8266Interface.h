@@ -32,6 +32,16 @@
 
 #define ESP8266_SOCKET_COUNT 5
 
+#ifdef TARGET_FF_ARDUINO
+#ifndef MBED_CONF_ESP8266_TX
+#define MBED_CONF_ESP8266_TX D1
+#endif
+
+#ifndef MBED_CONF_ESP8266_RX
+#define MBED_CONF_ESP8266_RX D0
+#endif
+#endif /* TARGET_FF_ARDUINO */
+
 /** ESP8266Interface class
  *  Implementation of the NetworkStack for the ESP8266
  */

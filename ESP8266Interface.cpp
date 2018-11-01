@@ -23,16 +23,6 @@
 #include "mbed_debug.h"
 #include "nsapi_types.h"
 
-#ifdef TARGET_FF_ARDUINO
-#ifndef MBED_CONF_ESP8266_TX
-#define MBED_CONF_ESP8266_TX D1
-#endif
-
-#ifndef MBED_CONF_ESP8266_RX
-#define MBED_CONF_ESP8266_RX D0
-#endif
-#endif /* TARGET_FF_ARDUINO */
-
 #ifndef MBED_CONF_ESP8266_DEBUG
 #define MBED_CONF_ESP8266_DEBUG false
 #endif
