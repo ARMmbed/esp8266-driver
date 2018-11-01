@@ -834,12 +834,16 @@ bool ESP8266::_recv_ap(nsapi_wifi_ap_t *ap)
 {
     int sec;
     int dummy;
-    bool ret = _parser.recv("+CWLAP:(%d,\"%32[^\"]\",%hhd,\"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx\",%hhu,%d,%d)\n",
+    bool ret = _parser.recv("+CWLAP:(%d,\"%32[^\"]\",%hhd,\"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx\",%hhu,%d,%d,%d,%d,%d,%d)\n",
                             &sec,
                             ap->ssid,
                             &ap->rssi,
                             &ap->bssid[0], &ap->bssid[1], &ap->bssid[2], &ap->bssid[3], &ap->bssid[4], &ap->bssid[5],
                             &ap->channel,
+                            &dummy,
+                            &dummy,
+                            &dummy,
+                            &dummy,
                             &dummy,
                             &dummy);
 
