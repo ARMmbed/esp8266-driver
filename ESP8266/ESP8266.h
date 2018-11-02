@@ -371,6 +371,7 @@ private:
     // FW version specific settings and functionalities
     bool _tcp_passive;
     int32_t _recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t timeout);
+    mbed::Callback<void()> _callback;
 
     // UART settings
     mbed::UARTSerial _serial;
