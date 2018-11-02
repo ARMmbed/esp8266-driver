@@ -35,6 +35,7 @@ ESP8266::ESP8266(PinName tx, PinName rx, bool debug, PinName rts, PinName cts)
     : _sdk_v(-1, -1, -1),
       _at_v(-1, -1, -1),
       _tcp_passive(false),
+      _callback(0),
       _serial(tx, rx, ESP8266_DEFAULT_BAUD_RATE),
       _serial_rts(rts),
       _serial_cts(cts),
@@ -560,7 +561,12 @@ void ESP8266::_oob_packet_hdlr()
 
     if(_tcp_passive && _sock_i[id].open == true && _sock_i[id].proto == NSAPI_TCP) {
         if (_parser.recv("%d\n", &amount)) {
-            _sock_i[id].tcp_data_avbl = amount; // Not used but stored for the sake of visibility
+            _sock_i[id].tcp_data_avbl = amount;
+
+            // notify data is available
+            if (_callback) {
+                _callback();
+            }
         }
         return;
     } else if (!_parser.recv("%d:", &amount)) {
@@ -616,6 +622,11 @@ void ESP8266::bg_process_oob(uint32_t timeout, bool all)
 int32_t ESP8266::_recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t timeout)
 {
     int32_t ret;
+
+    // return immediately if no data is available
+    if (_sock_i[id].tcp_data_avbl == 0) {
+        return NSAPI_ERROR_WOULD_BLOCK;
+    }
 
     _smutex.lock();
 
@@ -823,6 +834,7 @@ bool ESP8266::writeable()
 void ESP8266::sigio(Callback<void()> func)
 {
     _serial.sigio(func);
+    _callback = func;
 }
 
 void ESP8266::attach(Callback<void()> status_cb)
