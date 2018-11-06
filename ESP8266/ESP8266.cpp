@@ -834,18 +834,32 @@ bool ESP8266::_recv_ap(nsapi_wifi_ap_t *ap)
 {
     int sec;
     int dummy;
-    bool ret = _parser.recv("+CWLAP:(%d,\"%32[^\"]\",%hhd,\"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx\",%hhu,%d,%d,%d,%d,%d,%d)\n",
-                            &sec,
-                            ap->ssid,
-                            &ap->rssi,
-                            &ap->bssid[0], &ap->bssid[1], &ap->bssid[2], &ap->bssid[3], &ap->bssid[4], &ap->bssid[5],
-                            &ap->channel,
-                            &dummy,
-                            &dummy,
-                            &dummy,
-                            &dummy,
-                            &dummy,
-                            &dummy);
+    bool ret;
+
+    if (FW_AT_LEAST_VERSION(_at_v.major, _at_v.minor, _at_v.patch, 0, ESP8266_AT_VERSION_WIFI_SCAN_CHANGE)) {
+        ret = _parser.recv("+CWLAP:(%d,\"%32[^\"]\",%hhd,\"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx\",%hhu,%d,%d,%d,%d,%d,%d)\n",
+                        &sec,
+                        ap->ssid,
+                        &ap->rssi,
+                        &ap->bssid[0], &ap->bssid[1], &ap->bssid[2], &ap->bssid[3], &ap->bssid[4], &ap->bssid[5],
+                        &ap->channel,
+                        &dummy,
+                        &dummy,
+                        &dummy,
+                        &dummy,
+                        &dummy,
+                        &dummy);
+    } else {
+        ret = _parser.recv("+CWLAP:(%d,\"%32[^\"]\",%hhd,\"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx\",%hhu,%d,%d)\n",
+                        &sec,
+                        ap->ssid,
+                        &ap->rssi,
+                        &ap->bssid[0], &ap->bssid[1], &ap->bssid[2], &ap->bssid[3], &ap->bssid[4], &ap->bssid[5],
+                        &ap->channel,
+                        &dummy,
+                        &dummy);
+
+    }
 
     ap->security = sec < 5 ? (nsapi_security_t)sec : NSAPI_SECURITY_UNKNOWN;
 
