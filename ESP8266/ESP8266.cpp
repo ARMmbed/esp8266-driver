@@ -416,11 +416,15 @@ nsapi_error_t ESP8266::open_udp(int id, const char *addr, int port, int local_po
     static const char *type = "UDP";
     bool done = false;
 
+    _smutex.lock();
+
+    // process OOB so that _sock_i reflects the correct state of the socket
+    _process_oob(ESP8266_SEND_TIMEOUT, true);
+
     if (id >= SOCKET_COUNT || _sock_i[id].open) {
+        _smutex.unlock();
         return NSAPI_ERROR_PARAMETER;
     }
-
-    _smutex.lock();
 
     for (int i = 0; i < 2; i++) {
         if (local_port) {
@@ -466,11 +470,15 @@ nsapi_error_t ESP8266::open_tcp(int id, const char *addr, int port, int keepaliv
     static const char *type = "TCP";
     bool done = false;
 
+    _smutex.lock();
+
+    // process OOB so that _sock_i reflects the correct state of the socket
+    _process_oob(ESP8266_SEND_TIMEOUT, true);
+
     if (id >= SOCKET_COUNT || _sock_i[id].open) {
+        _smutex.unlock();
         return NSAPI_ERROR_PARAMETER;
     }
-
-    _smutex.lock();
 
     for (int i = 0; i < 2; i++) {
         if (keepalive) {
@@ -623,12 +631,16 @@ int32_t ESP8266::_recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t
 {
     int32_t ret;
 
+    _smutex.lock();
+
+    // process all outstanding OOB to ensure tcp_data_avbl is up to date
+    _process_oob(timeout, true);
+
     // return immediately if no data is available
     if (_sock_i[id].tcp_data_avbl == 0) {
+        _smutex.unlock();
         return NSAPI_ERROR_WOULD_BLOCK;
     }
-
-    _smutex.lock();
 
     _sock_i[id].tcp_data = (char*)data;
     _sock_i[id].tcp_data_rcvd = NSAPI_ERROR_WOULD_BLOCK;
@@ -646,6 +658,15 @@ int32_t ESP8266::_recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t
     (void)done;
     _sock_i[id].tcp_data = NULL;
     _sock_active_id = -1;
+
+    // update internal variable tcp_data_avbl to reflect the remaining data
+    if (_sock_i[id].tcp_data_rcvd > 0) {
+        if (_sock_i[id].tcp_data_avbl > _sock_i[id].tcp_data_rcvd) {
+            _sock_i[id].tcp_data_avbl -= _sock_i[id].tcp_data_rcvd;
+        } else {
+            _sock_i[id].tcp_data_avbl = 0;
+        }
+    }
 
     ret = _sock_i[id].tcp_data_rcvd;
 
