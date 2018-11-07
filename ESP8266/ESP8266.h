@@ -97,6 +97,13 @@ public:
     bool at_available(void);
 
     /**
+     * Disable echo - required for OOB processing to work
+     *
+     * @return true if echo was successfully disabled
+     */
+    bool echo_off(void);
+
+    /**
     * Check sdk version from which firmware is created
     *
     * @return fw_sdk_version which tells major, minor and patch version

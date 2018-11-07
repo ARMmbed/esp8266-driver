@@ -97,6 +97,16 @@ bool ESP8266::at_available()
     return ready;
 }
 
+bool ESP8266::echo_off()
+{
+    _smutex.lock();
+    bool ready = _parser.send("ATE0")
+                 && _parser.recv("OK\n");
+    _smutex.unlock();
+
+    return ready;
+}
+
 struct ESP8266::fw_sdk_version ESP8266::sdk_version()
 {
     int major;
