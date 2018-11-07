@@ -11,15 +11,24 @@ make sure that the firmware in your module is compatible with Mbed OS, follow th
 It is advisable to update the [AT firmware](https://www.espressif.com/en/support/download/at?keys=) at least to version
 1.7.0.0
 
+v1.6 driver supports AT firmware up to version 1.6.2. Mbed OS 5.10 supports AT firmwares up to version 1.6.2. v1.7
+driver found from Mbed OS 5.11 allows usage of AT firmware version 1.7.0.0.
+
+**NOTE** Here we are talking about AT firmware version - not SDK version. SDK firmware without AT is no use.
+
+**NOTE** AT firmware version numbers and driver version numbers do not match to each other. E.g., driver version v1.7
+does imply that it will support AT FW version 1.7.0.0
+
 ## Restrictions
 
 - The ESP8266 WiFi module does not allow the TCP client to bind on a specific port.
 - Setting up a UDP server is not possible.
 - The serial port does not have hardware flow control enabled by default. The AT command set does not either have a way
-to limit the download rate. Therefore, downloading anything larger than the serial port input buffer is unreliable. An
-application should be able to read fast enough to stay ahead of the network. This affects mostly the TCP protocol where
-data would be lost with no notification. On UDP, this would lead to only packet losses which the higher layer protocol
-should recover from.
+to limit the download rate. Therefore, downloading anything larger than the serial port input buffer is unreliable - 
+unless [AT firmware](https://www.espressif.com/en/support/download/at?keys=) version 1.7.0 or later is used. With older
+firmware an application should be able to read fast enough to stay ahead of the network. This affects mostly the TCP
+protocol where data would be lost with no notification. On UDP - with all firmware versions - this would lead to only
+packet losses which the higher layer protocol should recover from.
 
 ## Mandatory configuration
 ![mbed_lib.json](mbed_lib.json) configuration assumes Arduino form factor. Please adjust according to which board is in
