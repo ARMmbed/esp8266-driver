@@ -13,9 +13,9 @@ This driver supports AT firmware versions 1.3.0 to 1.7.0. We advise updating the
 
 ## Restrictions
 
-- The ESP8266 Wi-Fi module does not allow the TCP client to bind to a specific port.
-- Setting up a UDP server is not possible.
-- The serial port does not have hardware flow control enabled by default. Additionally, the AT command set does not have a method for limiting the download rate. Therefore, downloading anything larger than the serial port input buffer is unreliable 
+* The ESP8266 Wi-Fi module does not allow the TCP client to bind to a specific port.
+* Setting up a UDP server is not possible.
+* The serial port does not have hardware flow control enabled by default. Additionally, the AT command set does not have a method for limiting the download rate. Therefore, downloading anything larger than the serial port input buffer is unreliable 
 unless you use [AT firmware](https://www.espressif.com/en/support/download/at?keys=) version 1.7.0 or later. With older
 firmware, an application should be able to read fast enough to stay ahead of the network. This applies mostly to TCP
 protocol, where data would be lost without notification. On UDP using all firmware versions, the higher-layer protocol should recover from packet loss.
@@ -71,30 +71,30 @@ Once you have your hardware set up, add a configuration like the following to yo
 
 ### Example board pins
 
-    1. TX - D1 (Arduino Uno Revision 3 connectivity  headers)
-    2. RX - D0 (Arduino Uno Revision 3 connectivity headers)
-    3. RTS - PG_12 (STMicroelectronics Morpho extension pin headers)
-    4. CTS - PG_15 (STMicroelectronics Morpho extension pin headers)
+* TX: D1 (Arduino Uno Revision 3 connectivity  headers)
+* RX: D0 (Arduino Uno Revision 3 connectivity headers)
+* RTS: PG_12 (STMicroelectronics Morpho extension pin headers)
+* CTS: PG_15 (STMicroelectronics Morpho extension pin headers)
 
 ### Example ESP8266 pins
 
-1. TX - D1 (Arduino Wireless Protoshield headers)/ TX (ESPBee XBee headers)
-    2. RX - D0 (Arduino Wireless Protoshield headers)/ RX (ESPBee XBee headers)
-    3. RTS - RTS (ESPBee XBee headers)
-    4. CTS - CTS (ESPBee XBee headers)
+* TX: D1 (Arduino Wireless Protoshield headers)/ TX (ESPBee XBee headers)
+* RX: D0 (Arduino Wireless Protoshield headers)/ RX (ESPBee XBee headers)
+* RTS: RTS (ESPBee XBee headers)
+* CTS: CTS (ESPBee XBee headers)
 
 ### Connections
 
-With these pictures only consider the green and yellow wires which are connected to ESP8266. Pink wire is for reset and
-the rest for firmware update. TX and RX go through Arduino pins D1 and D0.
+With these pictures only consider the green and yellow wires which are connected to ESP8266. The pink wire is for reset and
+the rest are for firmware update. TX and RX go through Arduino pins D1 and D0.
 
 **Note:** Pull down GPIO15(ESPBee RTS) during startup to boot from flash, instead of **firmware update** or
 **boot from SD card**. Once the software is running, the same pin is used as the RTS pin:
 
-    1. Board TX - ESP8266 RX
-    2. Board RX - ESP8266 TX
-    3. Board RTS(grey) - ESP8266 CTS(yellow)
-    4. Board CTS(white) - ESP8266 RTS(green)
+* Board TX: ESP8266 RX
+* Board RX: ESP8266 TX
+* Board RTS (grey): ESP8266 CTS(yellow)
+* Board CTS (white): ESP8266 RTS(green)
 
 ![RTS,CTS](nucleo_esp8266_hw_fc1.jpg)
 ![RTS,CTS](nucleo_esp8266_hw_fc2.jpg)
