@@ -16,6 +16,7 @@
 
 #include <string.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "ESP8266.h"
 #include "features/netsocket/nsapi_types.h"
