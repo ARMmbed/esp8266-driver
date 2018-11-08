@@ -354,7 +354,7 @@ private:
     // Drivers's socket info
     struct _sock_info {
         bool open;
-        int16_t sport;
+        int32_t sport;
     };
     struct _sock_info _sock_i[ESP8266_SOCKET_COUNT];
 
