@@ -63,7 +63,7 @@ public:
     /**
      * @brief ESP8266Interface default destructor
      */
-    ~ESP8266Interface();
+    virtual ~ESP8266Interface();
 
     /** Start the interface
      *
