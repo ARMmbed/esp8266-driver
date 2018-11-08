@@ -88,7 +88,7 @@ Once you have your hardware set up, add a configuration like the following to yo
 With these pictures only consider the green and yellow wires which are connected to ESP8266. The pink wire is for reset and
 the rest are for firmware update. TX and RX go through Arduino pins D1 and D0.
 
-**Note:** Pull down GPIO15(ESPBee RTS) during startup to boot from flash, instead of **firmware update** or
+**Note:** Pull down GPIO15(ESPBee RTS) during startup to **boot from flash**, instead of **firmware update** or
 **boot from SD card**. Once the software is running, the same pin is used as the RTS pin:
 
 * Board TX: ESP8266 RX
