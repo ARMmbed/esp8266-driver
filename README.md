@@ -8,7 +8,7 @@ ESP8266 modules come in different shapes and formats, but the most important fac
 make sure that the firmware in your module is compatible with Mbed OS, follow the
 [Update guide](https://developer.mbed.org/teams/ESP8266/wiki/Firmware-Update).
 
-This driver supports AT firmware version from 1.3.0 to 1.7.0. We advise updating the
+This driver supports AT firmware versions 1.3.0 to 1.7.0. We advise updating the
 [AT firmware](https://www.espressif.com/en/support/download/at?keys=) to at least version 1.7.0.
 
 ## Restrictions
