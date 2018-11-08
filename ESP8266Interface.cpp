@@ -396,7 +396,7 @@ int ESP8266Interface::socket_close(void *handle)
 
     socket->connected = false;
     _sock_i[socket->id].open = false;
-    _sock_i[socket->id].sport = -1;
+    _sock_i[socket->id].sport = 0;
     delete socket;
     return err;
 }
