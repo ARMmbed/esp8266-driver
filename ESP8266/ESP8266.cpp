@@ -624,12 +624,15 @@ int32_t ESP8266::_recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t
 {
     int32_t ret;
 
+    _smutex.lock();
+
+    _process_oob(timeout, true);
+
     // return immediately if no data is available
-    if (_sock_i[id].tcp_data_avbl == 0) {
+    if (_sock_i[id].tcp_data_avbl == 0 && _sock_i[id].open) {
+        _smutex.unlock();
         return NSAPI_ERROR_WOULD_BLOCK;
     }
-
-    _smutex.lock();
 
     _sock_i[id].tcp_data = (char*)data;
     _sock_i[id].tcp_data_rcvd = NSAPI_ERROR_WOULD_BLOCK;
