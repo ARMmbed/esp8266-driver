@@ -63,7 +63,7 @@ ESP8266Interface::ESP8266Interface()
 
     for (int i = 0; i < ESP8266_SOCKET_COUNT; i++) {
         _sock_i[i].open = false;
-        _sock_i[i].sport = -1;
+        _sock_i[i].sport = 0;
     }
 }
 #endif
@@ -89,7 +89,7 @@ ESP8266Interface::ESP8266Interface(PinName tx, PinName rx, bool debug, PinName r
 
     for (int i = 0; i < ESP8266_SOCKET_COUNT; i++) {
         _sock_i[i].open = false;
-        _sock_i[i].sport = -1;
+        _sock_i[i].sport = 0;
     }
 }
 

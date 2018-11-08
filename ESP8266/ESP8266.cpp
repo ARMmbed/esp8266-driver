@@ -622,36 +622,31 @@ void ESP8266::bg_process_oob(uint32_t timeout, bool all)
 
 int32_t ESP8266::_recv_tcp_passive(int id, void *data, uint32_t amount, uint32_t timeout)
 {
-    int32_t ret;
+    int32_t ret = NSAPI_ERROR_WOULD_BLOCK;
 
     _smutex.lock();
 
     _process_oob(timeout, true);
 
-    // return immediately if no data is available
-    if (_sock_i[id].tcp_data_avbl == 0 && _sock_i[id].open) {
-        _smutex.unlock();
-        return NSAPI_ERROR_WOULD_BLOCK;
+    if (_sock_i[id].tcp_data_avbl != 0) {
+        _sock_i[id].tcp_data = (char*)data;
+        _sock_i[id].tcp_data_rcvd = NSAPI_ERROR_WOULD_BLOCK;
+        _sock_active_id = id;
+
+        // +CIPRECVDATA supports up to 2048 bytes at a time
+        amount = amount > 2048 ? 2048 : amount;
+
+        // NOTE: documentation v3.0 says '+CIPRECVDATA:<data_len>,' but it's not how the FW responds...
+        bool done = _parser.send("AT+CIPRECVDATA=%d,%lu", id, amount)
+                                && _parser.recv("OK\n");
+        if (!done) {
+            tr_debug("data request failed");
+        }
+        _sock_i[id].tcp_data = NULL;
+        _sock_active_id = -1;
+
+        ret = _sock_i[id].tcp_data_rcvd;
     }
-
-    _sock_i[id].tcp_data = (char*)data;
-    _sock_i[id].tcp_data_rcvd = NSAPI_ERROR_WOULD_BLOCK;
-    _sock_active_id = id;
-
-    // +CIPRECVDATA supports up to 2048 bytes at a time
-    if (amount > 2048) {
-        amount = 2048;
-    }
-
-    // NOTE: documentation v3.0 says '+CIPRECVDATA:<data_len>,' but it's not how the FW responds...
-    bool done = _parser.send("AT+CIPRECVDATA=%d,%lu", id, amount)
-                && _parser.recv("OK\n");
-
-    (void)done;
-    _sock_i[id].tcp_data = NULL;
-    _sock_active_id = -1;
-
-    ret = _sock_i[id].tcp_data_rcvd;
 
     if (!_sock_i[id].open && ret == NSAPI_ERROR_WOULD_BLOCK) {
         ret = 0;
