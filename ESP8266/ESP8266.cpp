@@ -151,6 +151,7 @@ struct ESP8266::fw_at_version ESP8266::at_version()
 bool ESP8266::stop_uart_hw_flow_ctrl(void)
 {
     bool done = true;
+#if DEVICE_SERIAL_FC
 
     if (_serial_rts != NC || _serial_cts != NC) {
         // Stop board's flow control
@@ -161,6 +162,7 @@ bool ESP8266::stop_uart_hw_flow_ctrl(void)
                && _parser.recv("OK\n");
     }
 
+#endif
     return done;
 }
 
@@ -168,6 +170,7 @@ bool ESP8266::start_uart_hw_flow_ctrl(void)
 {
     bool done = true;
 
+#if DEVICE_SERIAL_FC
     if (_serial_rts != NC && _serial_cts != NC) {
         // Start board's flow control
         _serial.set_flow_control(SerialBase::RTSCTS, _serial_rts, _serial_cts);
@@ -190,7 +193,11 @@ bool ESP8266::start_uart_hw_flow_ctrl(void)
 
         _serial.set_flow_control(SerialBase::CTS, NC, _serial_cts);
     }
-
+#else
+    if (_serial_rts != NC || _serial_cts != NC) {
+        done = false;
+    }
+#endif
     return done;
 }
 
